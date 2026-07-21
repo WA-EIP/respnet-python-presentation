@@ -1,0 +1,30 @@
+<div id="custom-footer">
+  Washington State Department of Health | <span id="slide-number"></span>
+</div>
+
+<script>
+  Reveal.on('slidechanged', function(event) {
+    const footer = document.getElementById('custom-footer');
+    const slideNumber = document.getElementById('slide-number');
+
+    // Hide footer on title slide (first slide)
+    if (event.indexh === 0 && event.indexv === 0) {
+      footer.style.display = 'none';
+    } else {
+      footer.style.display = 'block';
+
+      // Get slide number from Reveal
+      const indices = Reveal.getIndices();
+      slideNumber.textContent = indices.h + 1;
+    }
+  });
+
+  // Run once on load
+  Reveal.on('ready', function(event) {
+    const footer = document.getElementById('custom-footer');
+
+    if (event.indexh === 0 && event.indexv === 0) {
+      footer.style.display = 'none';
+    }
+  });
+</script>

@@ -1,0 +1,15 @@
+title: Slides
+author: Frank Aragona
+version: 1.0.0
+quarto-required: ">=1.6.0"
+contributes:
+  formats:
+    revealjs:
+      theme: [default, custom.scss]
+      include-after-body: add-custom-footer.html
+      template-partials:
+        - title-slide.html
+      # use relative paths for images
+      format-resources:
+        - assets/*
+

@@ -1,0 +1,272 @@
+---
+title: Python for RESP-NET Subtype Linkage {{< iconify vscode-icons:file-type-python style="color:#48BDF3;">}}
+author: Frank Aragona - Washington DOH
+format: 
+    revealjs: 
+        theme: [default, assets/styles.scss]
+        width: 1500
+revealjs-plugins:
+  - codewindow
+filters:
+  - diagrams
+knitr: false
+lightbox: true
+execute: 
+  eval: false
+  echo: true
+---
+
+## Data Integration & Quality Assurance
+
+- Data engineering (ETL pipelines)
+- QA reports
+
+<!-- join data, for ex. if someone has a flu hospitalization we want to enrich that dataset with their flu subtype data -->
+
+## Project Standardization
+
+- GitHub for code & documentation
+- Python package for shared functionality
+- Project specific py packages with similar structure
+
+<!-- join data, for ex. if someone has a flu hospitalization we want to enrich that dataset with their flu subtype data -->
+
+::::: {.hierarchy}
+:::: item
+wadoh_raccoon
+
+:::{.item color="#31166e"}
+respnet_subtyping
+:::
+
+::: item
+covid
+:::
+
+::: item
+enterics
+:::
+::::
+:::::
+
+
+
+## wadoh_raccoon Install
+
+::::{.codewindow width="350px"}
+
+::: {.editor .fragment .terminal name="uv"}
+```bash
+uv add wadoh_raccoon
+```
+:::
+
+::: {.editor .fragment .terminal name="pip"}
+```bash
+pip install wadoh_raccoon
+```
+:::
+
+::::
+
+## RESP-NET Subtyping
+
+:::{.incremental}
+- Pipeline to link subtyping data 
+- Labs send subtype data to LIMS
+- Pulls data from LIMS
+- Links data to disease reporting database (WDRS)
+:::
+
+## Subtyping Process
+
+```{python}
+#| echo: false
+#| eval: true
+import altair as alt
+import polars as pl
+
+# Read data
+df = pl.read_csv("timelag.csv")
+
+# Altair works with pandas
+# pdf = df.to_pandas()
+
+domain = [0, 600]
+
+# Density plot
+density = (
+    alt.Chart(df)
+    .transform_density(
+        "days",
+        groupby=["stage"],
+        as_=["value", "density"],
+    )
+    .mark_area(opacity=0.6)
+    .encode(
+        x=alt.X(
+            "value:Q",
+            scale=alt.Scale(domain=domain),
+            title=None,
+            axis=None,
+        ),
+        y=alt.Y("density:Q", axis=None),
+        color=alt.Color("stage:N", legend=None),
+    )
+    .properties(width=500, height=70)
+)
+
+# Jittered points
+points = (
+    alt.Chart(df)
+    .transform_calculate(
+        jitter="random()"
+    )
+    .mark_point(
+        size=20,
+        opacity=0.5,
+        filled=True,
+    )
+    .encode(
+        x=alt.X(
+            "days:Q",
+            scale=alt.Scale(domain=domain),
+            title="Days",
+        ),
+        y=alt.Y(
+            "jitter:Q",
+            axis=None,
+            scale=alt.Scale(range=[20, 0]),
+        ),
+        color=alt.Color("stage:N", legend=None),
+        tooltip=["PHLAccessionNumber", "stage", "days"],
+    )
+)
+
+# Boxplot
+box = (
+    alt.Chart(df)
+    .mark_boxplot(outliers=False)
+    .encode(
+        x=alt.X(
+            "days:Q",
+            scale=alt.Scale(domain=domain),
+            title="Days",
+        ),
+        color=alt.Color("stage:N", legend=None),
+    )
+)
+
+bottom = (
+    alt.layer(box, points)
+    .facet(
+        row=alt.Row("stage:N", header=alt.Header(title=None))
+    )
+    .properties(width=500, height=18)
+)
+
+chart = (
+    alt.vconcat(
+        density,
+        bottom,
+        spacing=15,
+    )
+    .configure_view(stroke=None)
+    .configure_axis(
+        domain=False,
+        ticks=False,
+        grid=False,
+    )
+)
+
+chart
+```
+
+## Subtyping Python Package
+
+repo: [https://github.com/WA-EIP/wadoh_subtyping](https://github.com/WA-EIP/wadoh_subtyping)
+
+pypi: [https://pypi.org/project/wadoh-subtyping/](https://pypi.org/project/wadoh-subtyping/)
+
+::::{.codewindow width="800px"}
+
+::: {.editor .fragment .terminal name="extract.py"}
+```python
+import pyodbc
+import polars as pl
+
+# Establish connection to WDRS=
+conn_wdrs = pyodbc.connect(
+    DRIVER='SQL Server Native Client 11.0',
+    SERVER=wdrs_server,
+    DATABASE=wdrs_db,
+    Trusted_Connection=wdrs_trusted,
+    ApplicationIntent=wdrs_intent
+)
+cases = pl.read_database(
+    query=cases_joined_query,
+    connection=conn_wdrs
+)
+```
+:::
+
+::: {.editor .fragment .terminal name="match.py"}
+```python
+from wadoh_raccoon import dataframe_matcher as dfm
+
+fuzzy_init = dfm.DataFrameMatcher(
+    df_src=w_res.submissions_to_fuzzy, 
+    df_ref=pull_res.respnet,
+    first_name=('PatientFirstName', 'FIRST_NAME'),
+    last_name=('PatientLastName', 'LAST_NAME'),
+    dob=('PatientBirthDate','BIRTH_DATE'),
+    spec_col_date=('SpecimenDateCollected', 'SPECIMEN_COLLECTION_DTTM'),
+    key='submission_number',
+    threshold=80  # set what kind of fuzzy threshold you want, 100 being exact match
+)
+
+result=fuzzy_init.match()
+```
+:::
+
+::: {.editor .fragment .terminal name="transform.py"}
+```python
+import src.subtype_link.transformations as tf
+
+df = tf.transform(df=phl_df)
+```
+:::
+
+::: {.editor .fragment .terminal name="load.py"}
+```python
+import wadoh_subtyping.load
+
+load.safe_insert(
+    con=pull_res.con,
+    table_name='qa_tbl',
+    source_view='qa_issues',
+    join_key='submission_number'
+)
+```
+:::
+
+::::
+
+
+## Linkage Python Package
+
+::::{.codewindow width="350px"}
+
+::: {.editor .fragment .terminal name="uv"}
+```bash
+uv add wadoh-subtyping
+```
+:::
+
+::: {.editor .fragment .terminal name="pip"}
+```bash
+pip install wadoh-subtyping
+```
+:::
+
+::::
