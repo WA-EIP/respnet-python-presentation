@@ -37,7 +37,7 @@ $theme-ocean: #051525;
 // $navbar-fg: #f5eff6;
 $navbar-fg: $theme-night;
 $light-bg: #f8f5f9;
-$link-color: $tertiary; 
+// $link-color: $tertiary; 
 // #051525;
 
 // fonts
@@ -63,11 +63,22 @@ html { font-family: 'Inter', sans-serif; }
 
 $font-family-sans-serif: 'Atkinson Hyperlegible', sans-serif;
 
+/*-- scss:defaults --*/
 
+$body-bg: #FAF9F7;
+$body-color: #444;
+
+$presentation-heading-color: #333;
+$link-color: #ff3399;
 
 
 
 /*-- scss:rules --*/
+
+.reveal {
+  background-color: #FAF9F7;
+}
+
 
 // :root {
 //     --bs-body-font-family: 'Atkinson Hyperlegible';

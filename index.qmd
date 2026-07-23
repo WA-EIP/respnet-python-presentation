@@ -190,9 +190,9 @@ function hconcat(...elem) {
 
 ## Project Standardization
 
-- GitHub for code & documentation
 - Python package for shared functionality
 - Project specific py packages with similar structure
+- Store code & documentation in **GitHub**
 
 <!-- join data, for ex. if someone has a flu hospitalization we want to enrich that dataset with their flu subtype data -->
 
@@ -226,61 +226,6 @@ main_pkg = {
   const svg = d3.create("svg")
     .attr("width", "100%")
     .attr("height", 280)
-    .attr("viewBox", "0 0 800 280");
-
-  const squareSize = 100;
-  const gap = 20;
-  const totalWidth = colors.length * squareSize + (colors.length - 1) * gap;
-  const startX = (800 - totalWidth) / 2;
-
-  svg.selectAll("rect")
-    .data(colors)
-    .join("rect")
-      .attr("x", (_, i) => startX + i * (squareSize + gap))
-      .attr("y", 60)
-      .attr("width", squareSize)
-      .attr("height", squareSize)
-      .attr("rx", 4)
-      .attr("fill", d => d);
-
-  // Annotation line
-  const firstX = startX + squareSize / 2;
-
-  svg.append("line")
-    .attr("x1", firstX)
-    .attr("y1", 170)
-    .attr("x2", firstX)
-    .attr("y2", 210)
-    .attr("stroke", "#555")
-    .attr("stroke-width", 3);
-
-  svg.append("text")
-    .attr("x", firstX)
-    .attr("y", 240)
-    .attr("text-anchor", "middle")
-    .attr("font-family", '"Maple Mono", monospace')
-    .attr("font-size", 24)
-    .attr("fill", "#555")
-    .text("Main package");
-
-  return svg.node();
-}
-```
-
-## wadoh_raccoon
-
-```{ojs}
-base = {
-  const colors = [
-    "#ff3399",
-    "hotpink",
-    "hsl(330, 100%, 70.5%)",
-    "rgba(128, 0, 128, 0.2)"
-  ];
-
-  const svg = d3.create("svg")
-    .attr("width", "100%")
-    .attr("height", 280)
     .attr("viewBox", "0 0 900 280");
 
   const size = 100;
@@ -297,14 +242,6 @@ base = {
     .attr("rx", 4)
     .attr("fill", colors[0]);
 
-  svg.append("line")
-    .attr("x1", mainX + size)
-    .attr("y1", y + size / 2)
-    .attr("x2", 350)
-    .attr("y2", y + size / 2)
-    .attr("stroke", "#999")
-    .attr("stroke-width", 2);
-
   svg.append("text")
     .attr("x", mainX + size / 2)
     .attr("y", 245)
@@ -312,23 +249,37 @@ base = {
     .attr("font-family", '"Maple Mono", monospace')
     .attr("font-size", 22)
     .attr("fill", "#555")
-    .text("wadoh_raccoon");
+    .text("Main Package");
 
-  svg.append("text")
-    .attr("x", mainX + size / 2)
-    .attr("y", 270)
-    .attr("text-anchor", "middle")
-    .attr("font-family", '"Maple Mono", monospace')
-    .attr("font-size", 16)
-    .attr("fill", "#888")
-    .text("Main py package");
+  // Border around dependent projects
+  const groupX = 330;
+  const groupY = 80;
+  const groupWidth = 520;
+  const groupHeight = 140;
 
+  svg.append("rect")
+    .attr("x", groupX)
+    .attr("y", groupY)
+    .attr("width", groupWidth)
+    .attr("height", groupHeight)
+    .attr("fill", "none")
+    .attr("stroke", "black")
+    .attr("stroke-width", 2);
+
+  // Connection from main package to the border
+  svg.append("line")
+    .attr("x1", mainX + size)
+    .attr("y1", y + size / 2)
+    .attr("x2", groupX)
+    .attr("y2", y + size / 2)
+    .attr("stroke", "#999")
+    .attr("stroke-width", 2);
 
   // Dependent projects
   const projects = [
-    {name: "project1", color: colors[1]},
-    {name: "project2", color: colors[2]},
-    {name: "project3", color: colors[3]}
+    { name: "project1", color: colors[1] },
+    { name: "project2", color: colors[2] },
+    { name: "project3", color: colors[3] }
   ];
 
   projects.forEach((p, i) => {
@@ -358,10 +309,117 @@ base = {
 }
 ```
 
-- If you need to reuse code more than 2x, put it in a function
-- If you reuse it across projects, put it in a package
-- Ensures that you use the exact same methods in every project
-- Saves hella time
+## wadoh_raccoon
+
+```{ojs}
+base = {
+  const colors = [
+    "#ff3399",
+    "rgba(128, 0, 128, 0.2)",
+    "rgba(128, 0, 128, 0.2)",
+    "rgba(128, 0, 128, 0.2)"
+  ];
+
+  const svg = d3.create("svg")
+    .attr("width", "100%")
+    .attr("height", 280)
+    .attr("viewBox", "0 0 900 280");
+
+  const size = 100;
+  const y = 100;
+
+  // Main package
+  const mainX = 100;
+
+  svg.append("rect")
+    .attr("x", mainX)
+    .attr("y", y)
+    .attr("width", size)
+    .attr("height", size)
+    .attr("rx", 4)
+    .attr("fill", colors[0]);
+
+  svg.append("text")
+    .attr("x", mainX + size / 2)
+    .attr("y", 245)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 22)
+    .attr("fill", "#555")
+    .text("wadoh_raccoon");
+
+  svg.append("text")
+    .attr("x", mainX + size / 2)
+    .attr("y", 270)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 16)
+    .attr("fill", "#888")
+    .text("Main py package");
+
+  // Border around dependent projects
+  const groupX = 330;
+  const groupY = 80;
+  const groupWidth = 520;
+  const groupHeight = 140;
+
+  svg.append("rect")
+    .attr("x", groupX)
+    .attr("y", groupY)
+    .attr("width", groupWidth)
+    .attr("height", groupHeight)
+    .attr("fill", "none")
+    .attr("stroke", "black")
+    .attr("stroke-width", 2);
+
+  // Connection from main package to the border
+  svg.append("line")
+    .attr("x1", mainX + size)
+    .attr("y1", y + size / 2)
+    .attr("x2", groupX)
+    .attr("y2", y + size / 2)
+    .attr("stroke", "#999")
+    .attr("stroke-width", 2);
+
+  // Dependent projects
+  const projects = [
+    { name: "project1", color: colors[1] },
+    { name: "project2", color: colors[2] },
+    { name: "project3", color: colors[3] }
+  ];
+
+  projects.forEach((p, i) => {
+    const x = 350 + i * 160;
+
+    // label above
+    svg.append("text")
+      .attr("x", x + size / 2)
+      .attr("y", 60)
+      .attr("text-anchor", "middle")
+      .attr("font-family", '"Maple Mono", monospace')
+      .attr("font-size", 18)
+      .attr("fill", "#555")
+      .text(p.name);
+
+    // square
+    svg.append("rect")
+      .attr("x", x)
+      .attr("y", y)
+      .attr("width", size)
+      .attr("height", size)
+      .attr("rx", 4)
+      .attr("fill", p.color);
+  });
+
+  return svg.node();
+}
+```
+
+> If you need to reuse code more than 2x, **put it in a function.**
+> If you reuse it across projects, **put it in a package.**
+> Ensures that you use the exact **same methods in every project.**
+> And saves hella time.
+
 
 ## wadoh_raccoon
 
@@ -598,6 +656,171 @@ pip install wadoh_raccoon
 
 :::: -->
 
+## 
+
+```{ojs}
+pkg1 = {
+  const colors = [
+    "#ff3399",
+    "hotpink",
+    "rgba(128, 0, 128, 0.2)",
+    "rgba(128, 0, 128, 0.2)"
+  ];
+
+  const svg = d3.create("svg")
+    .attr("width", "100%")
+    .attr("height", 300)
+    .attr("viewBox", "0 0 900 300");
+
+  const size = 100;
+  const y = 100;
+
+  // Main package (de-emphasized)
+  const mainX = 100;
+
+  svg.append("rect")
+    .attr("x", mainX)
+    .attr("y", y)
+    .attr("width", size)
+    .attr("height", size)
+    .attr("rx", 4)
+    .attr("fill", colors[0])
+    .attr("fill-opacity", 0.25);
+
+  svg.append("text")
+    .attr("x", mainX + size / 2)
+    .attr("y", 245)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 22)
+    .attr("fill", "#555")
+    .attr("fill-opacity", 0.4)
+    .text("wadoh_raccoon");
+
+  svg.append("text")
+    .attr("x", mainX + size / 2)
+    .attr("y", 270)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 16)
+    .attr("fill", "#888")
+    .attr("fill-opacity", 0.4)
+    .text("Main py package");
+
+  // Group border
+  const groupX = 330;
+  const groupY = 80;
+  const groupWidth = 520;
+  const groupHeight = 160;
+
+  svg.append("rect")
+    .attr("x", groupX)
+    .attr("y", groupY)
+    .attr("width", groupWidth)
+    .attr("height", groupHeight)
+    .attr("fill", "none")
+    .attr("stroke", "black")
+    .attr("stroke-width", 2);
+
+  // Connection (also de-emphasized)
+  svg.append("line")
+    .attr("x1", mainX + size)
+    .attr("y1", y + size / 2)
+    .attr("x2", groupX)
+    .attr("y2", y + size / 2)
+    .attr("stroke", "#999")
+    .attr("stroke-width", 2)
+    .attr("stroke-opacity", 0.4);
+
+  // Projects
+  const projects = [
+    { name: "wadoh_subtyping", color: colors[1] },
+    { name: "project2", color: colors[2] },
+    { name: "project3", color: colors[3] }
+  ];
+
+  projects.forEach((p, i) => {
+    const focused = i === 0;
+
+    const projectSize = focused ? 120 : 100;
+    const x = 350 + i * 160 - (projectSize - 100) / 2;
+    const projectY = focused ? y - 10 : y;
+
+    svg.append("text")
+      .attr("x", x + projectSize / 2)
+      .attr("y", 60)
+      .attr("text-anchor", "middle")
+      .attr("font-family", '"Maple Mono", monospace')
+      .attr("font-size", focused ? 20 : 18)
+      .attr("font-weight", focused ? "bold" : null)
+      .attr("fill", focused ? "#333" : "#999")
+      .attr("fill-opacity", focused ? 1 : 0.4)
+      .text(p.name);
+
+    svg.append("rect")
+      .attr("x", x)
+      .attr("y", projectY)
+      .attr("width", projectSize)
+      .attr("height", projectSize)
+      .attr("rx", 4)
+      .attr("fill", p.color)
+      .attr("fill-opacity", focused ? 1 : 0.25);
+  });
+
+  return svg.node();
+}
+```
+
+
+::::: process
+
+:::: item
+Lab
+
+::: annotation
+Take sample, **send** specimens to PHL
+:::
+
+::::
+
+:::: item
+PHL
+
+::: annotation
+**Subtype** the specimen, store in LIMS
+:::
+
+::::
+
+:::: {.item color="hotpink"}
+DIQA
+
+::: annotation
+**Join** subtype to hospitalization record in WDRS
+:::
+
+::::
+
+:::: item
+WDRS
+
+::: annotation
+**Stores** hospitalization and subtype info
+:::
+
+::::
+
+:::: item
+REDCap
+
+::: annotation
+**Report** hospitalization and subtype info to users
+:::
+
+::::
+
+:::::
+
 ## wadoh_subtyping - simple things
 
 ```{ojs}
@@ -710,10 +933,7 @@ subtype_pkg1 = {
 
 ## wadoh_subtyping - not so simple things
 
-```{python}
-#| eval: false
-#| echo: true
-
+```python
 # run ID matching - join to 
 # comma separate, need to explode the values in respnet
 respnet_explode = (
@@ -779,531 +999,3 @@ match_by_mrn = (
 )
 
 ```
-
-## RESP-NET Subtyping
-
-:::{.incremental}
-- Pipeline to link subtyping data 
-- Labs send subtype data to LIMS
-- Pulls data from LIMS
-- Links data to disease reporting database (WDRS)
-:::
-
-## {.center}
-
-```{python}
-#| echo: false
-#| eval: true
-import polars as pl
-
-# Read data
-df = pl.read_csv("timelag.csv")
-
-# clean
-rm_na = (
-    df
-    .filter(pl.col('days').is_not_null())
-)
-
-
-
-
-```
-
-```{python}
-#| eval: true
-#| echo: false
-# ojs_define(data=rm_na)
-```
-
-```{python}
-#| eval: false
-#| echo: false
-import random
-# Get unique IDs
-unique_ids = rm_na.select("PHLAccessionNumber").unique()
-
-# Generate random replacement IDs
-random.seed(42)  # optional, for reproducibility
-
-id_map = unique_ids.with_columns(
-    pl.Series(
-        "censored_id",
-        [random.randint(100000, 999999) for _ in range(unique_ids.height)]
-    )
-)
-
-# Replace identifiers using the mapping
-df_censored = (
-    rm_na.join(id_map, on="PHLAccessionNumber")
-      .drop("PHLAccessionNumber")
-      .rename({"censored_id": "PHLAccessionNumber"})
-      .unique()
-      .with_columns(
-        pl.col('PHLAccessionNumber').cast(pl.String)
-      )
-)
-
-df_censored.write_csv('censored.csv')
-```
-
-<!-- {{< include density_plot.qmd >}} -->
-
-```{ojs}
-//| eval: true
-//| echo: false
-
-// Function to compute density
-function kernelDensityEstimator(kernel, X) {
-  return function(V) {
-    return X.map(function(x) {
-      return [x, d3.mean(V, function(v) { return kernel(x - v); })];
-    });
-  };
-}
-
-```
-
-```{ojs}
-//| eval: true
-//| echo: false
-
-function kernelEpanechnikov(k) {
-  return function(v) {
-    return Math.abs(v /= k) <= 1 ? 0.75 * (1 - v * v) / k : 0;
-  };
-}
-
-```
-
-```{ojs}
-//| eval: true
-//| echo: false
-
-data = FileAttachment("censored.csv").csv()
-  .then(rows => rows.map(d => ({
-    id: +d.PHLAccessionNumber,
-    outcome: d.stage,
-    days: +d.days
-  })))
-
-chart = {
-
-  // Specify the chart’s dimensions.
-  const width = 1200;
-  // const height = 600;
-  const marginTop = 50;
-  const marginRight = 40;
-  const marginBottom = 35;
-  const marginLeft = 100;
-
-  // const densityHeight = 200;   // top area
-  // const boxplotHeight = 150;   // bottom area
-
-  const densityHeight = 200;
-  const gap = -40;
-  const boxplotHeight = 220;
-
-const boxTop = densityHeight + gap;
-const height = boxTop + boxplotHeight + marginBottom;
-
-  // Define the horizontal scale.
-  const x = d3.scaleLinear()
-    .domain([0, 100])
-    .range([marginLeft, width - marginRight]);
-
-  const y = d3.scaleLinear()
-      .domain([0, 0.12])
-      .range([densityHeight, marginTop]);
-
-  const filteredData = data.filter(d => {
-    const group = data
-      .filter(x => x.outcome === d.outcome)
-      .map(x => x.days)
-      .sort(d3.ascending);
-  
-    const q1 = d3.quantile(group, 0.25);
-    const q3 = d3.quantile(group, 0.75);
-    const iqr = q3 - q1;
-  
-    const lower = q1 - 1.5 * iqr;
-    const upper = q3 + 1.5 * iqr;
-  
-    return d.days >= lower && d.days <= upper;
-  });
-
-  // Make the boxplot stats 
-  // Compute quartiles, median, inter quantile range min and max --> these info are then used to draw the box.
-  const sumstat = d3.rollups(
-  filteredData,
-  v => {
-    const values = v.map(d => d.days).sort(d3.ascending);
-
-    const q1 = d3.quantile(values, 0.25);
-    const median = d3.quantile(values, 0.5);
-    const q3 = d3.quantile(values, 0.75);
-    const iqr = q3 - q1;
-
-    return {
-      q1,
-      median,
-      q3,
-      iqr,
-      min: Math.max(d3.min(values), q1 - 1.5 * iqr),
-      max: Math.min(d3.max(values), q3 + 1.5 * iqr)
-    };
-  },
-  d => d.outcome
-).map(([outcome, stats]) => ({
-  outcome,
-  ...stats
-}));
-
-  // Color scale
-  const myColor = d3.scaleSequential()
-    .interpolator(d3.interpolateInferno)
-    .domain([4,8])
-
-  const colors = d3.scaleOrdinal()
-    .domain([
-      "reporting_days",
-      "processing_days",
-      "transit_days"
-    ])
-    .range([
-      "#56B4E9",
-      "#3F51B5",
-      "#E68653"
-    ]);
-
-  const outcomes = ["processing_days", "transit_days", "reporting_days"];
-
-  const yCategory = d3.scaleBand()
-  .domain(outcomes)
-  .range([0, boxplotHeight])
-  .paddingInner(0.5)
-  .paddingOuter(0.8);
-  
-
-  // Create the container SVG.
-  const svg = d3.create("svg")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("viewBox", [0, 0, width, height])
-      .attr("style", "width: 100%; height: auto;");
-
-  const densityGroup = svg.append("g")
-  .attr("transform", `translate(0,0)`);
-  
-  const densityBottom = densityHeight + 10;
-
-const boxGroup = svg.append("g")
-  .attr("transform", `translate(0,${densityBottom + gap})`);
-
-  // Add the axes.
-  svg.append("g")
-      .attr("transform", `translate(0,${height - marginBottom})`)
-      .call(d3.axisBottom(x));
-
-// Compute kernel density estimation
-  // const kde = kernelDensityEstimator(kernelEpanechnikov(7), x.ticks(60))
-  const values = filteredData.map(d => d.days);
-
-  // const kde = kernelDensityEstimator(
-  //   kernelEpanechnikov(7),
-  //   d3.range(
-  //     d3.min(values),
-  //     d3.max(values),
-  //     1
-  //   )
-  // );
-  const kde = kernelDensityEstimator(
-    kernelEpanechnikov(3),
-    d3.range(0, 101, 1)
-  );
-  const density1 =  kde( filteredData
-      .filter( function(d){return d.outcome === "reporting_days"} )
-      .map(function(d){  return d.days; }) )
-      .filter(d => d[0] >= 0 && d[0] <= 100);
-  const density2 =  kde( filteredData
-      .filter( function(d){return d.outcome === "processing_days"} )
-      .map(function(d){  return d.days; }) )
-  .filter(d => d[0] >= 0 && d[0] <= 100);
-  const density3 =  kde( filteredData
-      .filter( function(d){return d.outcome === "transit_days"} )
-      .map(function(d){  return d.days; }) )
-  .filter(d => d[0] >= 0 && d[0] <= 100);
-
-
-  // Append a circle for each data point.
-
-  // Plot the area
-  densityGroup.append("path")
-    .datum(density1)
-    .attr("fill", d => colors("reporting_days"))
-    .attr("opacity", 0.6)
-    .attr("stroke", "#000")
-    .attr("d", d3.area()
-      .curve(d3.curveLinear)
-      .x(d => x(d[0]))
-      .y0(y(0))
-      .y1(d => y(d[1]))
-    );
-
-  // Plot the area
-  densityGroup.append("path")
-      .attr("class", "mypath")
-      .datum(density2)
-      .attr("fill", d => colors("processing_days"))
-      .attr("opacity", ".6")
-      .attr("stroke", "#000")
-      .attr("stroke-width", 1)
-      .attr("stroke-linejoin", "round")
-      .attr("d", d3.area()
-        .curve(d3.curveLinear)
-        .x(d => x(d[0]))
-        .y0(y(0))
-        .y1(d => y(d[1]))
-      );
-
-  densityGroup.append("path")
-      .attr("class", "mypath")
-      .datum(density3)
-      .attr("fill", d => colors("transit_days"))
-      .attr("opacity", ".6")
-      .attr("stroke", "#000")
-      .attr("stroke-width", 1)
-      .attr("stroke-linejoin", "round")
-      .attr("d", d3.area()
-        .curve(d3.curveLinear)
-        .x(d => x(d[0]))
-        .y0(y(0))
-        .y1(d => y(d[1]))
-      );
-
-  // make the boxes smaller height
-  const boxHeight = yCategory.bandwidth() - 10;
-  const boxOffset = 5; // centers the shorter box within the band
-
-  boxGroup.selectAll(".box")
-  .data(sumstat)
-  .enter()
-  .append("rect")
-  .attr("class", "box")
-  .attr("x", d => x(d.q1))
-  .attr("width", d => x(d.q3) - x(d.q1))
-  .attr("y", d => yCategory(d.outcome) + boxOffset)
-  .attr("height", boxHeight)
-  .attr("stroke", "black")
-  .style("fill", d => colors(d.outcome))
-  .style("opacity", 0.5);
-
-  boxGroup.selectAll(".median")
-  .data(sumstat)
-  .enter()
-  .append("line")
-  .attr("x1", d => x(d.median))
-  .attr("x2", d => x(d.median))
-  .attr("y1", d => yCategory(d.outcome) + boxOffset)
-  .attr("y2", d => yCategory(d.outcome) + boxOffset + boxHeight)
-  .attr("stroke", "black")
-  .attr("stroke-width", 2);
-
-  boxGroup.selectAll(".leftWhisker")
-  .data(sumstat)
-  .enter()
-  .append("line")
-  .attr("x1", d => x(d.min))
-  .attr("x2", d => x(d.q1))
-  .attr("y1", d => yCategory(d.outcome) + boxOffset + boxHeight / 2)
-  .attr("y2", d => yCategory(d.outcome) + boxOffset + boxHeight / 2)
-  .attr("stroke", "black");
-
-boxGroup.selectAll(".rightWhisker")
-  .data(sumstat)
-  .enter()
-  .append("line")
-  .attr("x1", d => x(d.q3))
-  .attr("x2", d => x(d.max))
-  .attr("y1", d => yCategory(d.outcome) + boxOffset + boxHeight / 2)
-  .attr("y2", d => yCategory(d.outcome) + boxOffset + boxHeight / 2)
-  .attr("stroke", "black");
-
-  // add data points
-
-  const pointY = d => yCategory(d.outcome) + boxOffset + boxHeight + 8;
-
-  const pointGap = 10;       // distance below box
-  const pointSpread = 10;    // vertical jitter height
-
-  filteredData.forEach(d => {
-    d.jitter = (Math.random() - 0.5) * pointSpread;
-  });
-
-  boxGroup.selectAll(".point")
-  .data(filteredData)
-  .enter()
-  .append("circle")
-  .attr("class", "point")
-  .attr("cx", d => x(d.days))
-  .attr("cy", d =>
-    yCategory(d.outcome) +
-    boxOffset +
-    boxHeight +
-    pointGap +
-    d.jitter
-  )
-  .attr("r", 2.5)
-  .attr("fill", d => colors(d.outcome))
-  .attr("opacity", 0.6);
-
-  
-
-const legend = svg.append("g")
-  .attr("transform", `translate(${width - 170},25)`);
-
-const legendItems = [
-  {label: "Reporting", outcome: "reporting_days"},
-  {label: "Processing", outcome: "processing_days"},
-  {label: "Transit", outcome: "transit_days"}
-];
-
-const item = legend.selectAll("g")
-  .data(legendItems)
-  .enter()
-  .append("g")
-  .attr("transform", (d, i) => `translate(0,${i * 22})`);
-
-item.append("rect")
-  .attr("width", 14)
-  .attr("height", 14)
-  .attr("fill", d => colors(d.outcome));
-
-item.append("text")
-  .attr("x", 20)
-  .attr("y", 11)
-  .style("font-size", "20px")
-  .text(d => d.label);
-
-
-
-
-  return svg.node();
-}
-
-```
-
-## DIQA
-
-- Query problems
-- Labs not sending demographics (no way to roster a record without it)
-- Chelsea found a medical record number that allowed us to match them
-- Went months without rostering many of these data
-- this plot shows that infra for sending and physically analyzing samples is standardized and battle tested
-- however, it shows that on the data side, the lack of data infrastructure, database management, and data standardization has led to a data modernization failure. 
-- if public health needs fast insights, I believe this is where the bottle neck will be - **the bottle neck isn't getting a subtype, it's putting that subtype data into a databse!
-**
-
-- Solutions: we need variable definitions
-- we need identifiers (matching on demographics will always be sketchy and have problems)
-- No amount of modernizing cloud infra will solve this. 
-- Data modernization needs to have data standards at the forefront of the conversation. Without it, it doesn't matter how well you write code 
-or how much data you can process. You will miss records because you cannot account for all scenarios (like labs putting numbers in the first name column)
-
-
-
-- look at the trend, how did the intervention affect the turnaround time for the sample? after chelsea figured it out, how did it have an impact?
-- three sections, A, B, C    put the clear definitions (the calculations)
-- add a total turnaround time, A + B + C (from specimen being sent to getting rosterd into WDRS)
-- next layer would be the trend, did intervention affect the trend
-- next plot could be date on the x axis and days on the y, and could show trend lines and then an 
-
-
-## Subtyping Python Package
-
-repo: [https://github.com/WA-EIP/wadoh_subtyping](https://github.com/WA-EIP/wadoh_subtyping)
-
-pypi: [https://pypi.org/project/wadoh-subtyping/](https://pypi.org/project/wadoh-subtyping/)
-
-::::{.codewindow width="800px"}
-
-::: {.editor .fragment .terminal name="extract.py"}
-```python
-import pyodbc
-import polars as pl
-
-# Establish connection to WDRS=
-conn_wdrs = pyodbc.connect(
-    DRIVER='SQL Server Native Client 11.0',
-    SERVER=wdrs_server,
-    DATABASE=wdrs_db,
-    Trusted_Connection=wdrs_trusted,
-    ApplicationIntent=wdrs_intent
-)
-cases = pl.read_database(
-    query=cases_joined_query,
-    connection=conn_wdrs
-)
-```
-:::
-
-::: {.editor .fragment .terminal name="match.py"}
-```python
-from wadoh_raccoon import dataframe_matcher as dfm
-
-fuzzy_init = dfm.DataFrameMatcher(
-    df_src=w_res.submissions_to_fuzzy, 
-    df_ref=pull_res.respnet,
-    first_name=('PatientFirstName', 'FIRST_NAME'),
-    last_name=('PatientLastName', 'LAST_NAME'),
-    dob=('PatientBirthDate','BIRTH_DATE'),
-    spec_col_date=('SpecimenDateCollected', 'SPECIMEN_COLLECTION_DTTM'),
-    key='submission_number',
-    threshold=80  # set what kind of fuzzy threshold you want, 100 being exact match
-)
-
-result=fuzzy_init.match()
-```
-:::
-
-::: {.editor .fragment .terminal name="transform.py"}
-```python
-import src.subtype_link.transformations as tf
-
-df = tf.transform(df=phl_df)
-```
-:::
-
-::: {.editor .fragment .terminal name="load.py"}
-```python
-import wadoh_subtyping.load
-
-load.safe_insert(
-    con=pull_res.con,
-    table_name='qa_tbl',
-    source_view='qa_issues',
-    join_key='submission_number'
-)
-```
-:::
-
-::::
-
-
-## Linkage Python Package
-
-::::{.codewindow width="350px"}
-
-::: {.editor .fragment .terminal name="uv"}
-```bash
-uv add wadoh-subtyping
-```
-:::
-
-::: {.editor .fragment .terminal name="pip"}
-```bash
-pip install wadoh-subtyping
-```
-:::
-
-::::
