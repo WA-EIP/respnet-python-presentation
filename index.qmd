@@ -251,6 +251,7 @@ main_pkg = {
     .attr("fill", "#555")
     .text("Main Package");
 
+
   // Border around dependent projects
   const groupX = 330;
   const groupY = 80;
@@ -266,7 +267,8 @@ main_pkg = {
     .attr("stroke", "black")
     .attr("stroke-width", 2);
 
-  // Connection from main package to the border
+
+  // Connection from main package to border
   svg.append("line")
     .attr("x1", mainX + size)
     .attr("y1", y + size / 2)
@@ -275,6 +277,7 @@ main_pkg = {
     .attr("stroke", "#999")
     .attr("stroke-width", 2);
 
+
   // Dependent projects
   const projects = [
     { name: "project1", color: colors[1] },
@@ -282,34 +285,75 @@ main_pkg = {
     { name: "project3", color: colors[3] }
   ];
 
-  projects.forEach((p, i) => {
-    const x = 350 + i * 160;
 
-    // label above
-    svg.append("text")
-      .attr("x", x + size / 2)
-      .attr("y", 60)
-      .attr("text-anchor", "middle")
-      .attr("font-family", '"Maple Mono", monospace')
-      .attr("font-size", 18)
-      .attr("fill", "#555")
-      .text(p.name);
+  // Create project groups
+  const projectGroups = svg.selectAll(".project")
+    .data(projects)
+    .join("g")
+      .attr("class", "project")
+      .attr("transform", (_, i) => `translate(${350 + i * 160 - 20},0)`)
+      .attr("opacity", 0);
 
-    // square
-    svg.append("rect")
-      .attr("x", x)
-      .attr("y", y)
-      .attr("width", size)
-      .attr("height", size)
-      .attr("rx", 4)
-      .attr("fill", p.color);
+
+  // Labels
+  projectGroups.append("text")
+    .attr("x", size / 2)
+    .attr("y", 60)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 18)
+    .attr("fill", "#555")
+    .text(d => d.name);
+
+
+  // Squares
+  projectGroups.append("rect")
+    .attr("x", 0)
+    .attr("y", y)
+    .attr("width", size)
+    .attr("height", size)
+    .attr("rx", 4)
+    .attr("fill", d => d.color);
+
+
+  // Animation
+  function animateProjects() {
+    projectGroups
+      .interrupt()
+      .attr("opacity", 0)
+      .attr("transform", (_, i) => 
+        `translate(${350 + i * 160 - 20},0)`
+      )
+      .transition()
+      .delay((_, i) => i * 400)
+      .duration(600)
+      .ease(d3.easeCubicOut)
+      .attr("opacity", 1)
+      .attr("transform", (_, i) => 
+        `translate(${350 + i * 160},0)`
+      );
+  }
+
+
+  animateProjects();
+
+
+  // Stop animation when Observable cell is destroyed
+  invalidation.then(() => {
+    projectGroups.interrupt();
   });
+
 
   return svg.node();
 }
 ```
 
 ## wadoh_raccoon
+
+> If you need to reuse code more than 2x, **put it in a function.**
+> If you reuse it across projects, **put it in a package.**
+> Ensures that you use the exact **same methods in every project.**
+> And saves hella time.
 
 ```{ojs}
 base = {
@@ -372,7 +416,8 @@ base = {
     .attr("stroke", "black")
     .attr("stroke-width", 2);
 
-  // Connection from main package to the border
+
+  // Connection from main package to border
   svg.append("line")
     .attr("x1", mainX + size)
     .attr("y1", y + size / 2)
@@ -381,6 +426,7 @@ base = {
     .attr("stroke", "#999")
     .attr("stroke-width", 2);
 
+
   // Dependent projects
   const projects = [
     { name: "project1", color: colors[1] },
@@ -388,37 +434,68 @@ base = {
     { name: "project3", color: colors[3] }
   ];
 
-  projects.forEach((p, i) => {
-    const x = 350 + i * 160;
 
-    // label above
-    svg.append("text")
-      .attr("x", x + size / 2)
-      .attr("y", 60)
-      .attr("text-anchor", "middle")
-      .attr("font-family", '"Maple Mono", monospace')
-      .attr("font-size", 18)
-      .attr("fill", "#555")
-      .text(p.name);
+  // Create project groups
+  const projectGroups = svg.selectAll(".project")
+    .data(projects)
+    .join("g")
+      .attr("class", "project")
+      .attr("transform", (_, i) => `translate(${350 + i * 160 - 20},0)`)
+      .attr("opacity", 0);
 
-    // square
-    svg.append("rect")
-      .attr("x", x)
-      .attr("y", y)
-      .attr("width", size)
-      .attr("height", size)
-      .attr("rx", 4)
-      .attr("fill", p.color);
+
+  // Labels
+  projectGroups.append("text")
+    .attr("x", size / 2)
+    .attr("y", 60)
+    .attr("text-anchor", "middle")
+    .attr("font-family", '"Maple Mono", monospace')
+    .attr("font-size", 18)
+    .attr("fill", "#555")
+    .text(d => d.name);
+
+
+  // Squares
+  projectGroups.append("rect")
+    .attr("x", 0)
+    .attr("y", y)
+    .attr("width", size)
+    .attr("height", size)
+    .attr("rx", 4)
+    .attr("fill", d => d.color);
+
+
+  // Animation
+  function animateProjects() {
+    projectGroups
+      .interrupt()
+      .attr("opacity", 0)
+      .attr("transform", (_, i) => 
+        `translate(${350 + i * 160 - 20},0)`
+      )
+      .transition()
+      .delay((_, i) => i * 400)
+      .duration(600)
+      .ease(d3.easeCubicOut)
+      .attr("opacity", 1)
+      .attr("transform", (_, i) => 
+        `translate(${350 + i * 160},0)`
+      );
+  }
+
+
+  animateProjects();
+
+
+  // Stop animation when Observable cell is destroyed
+  invalidation.then(() => {
+    projectGroups.interrupt();
   });
+
 
   return svg.node();
 }
 ```
-
-> If you need to reuse code more than 2x, **put it in a function.**
-> If you reuse it across projects, **put it in a package.**
-> Ensures that you use the exact **same methods in every project.**
-> And saves hella time.
 
 
 ## wadoh_raccoon
@@ -805,7 +882,7 @@ DIQA
 WDRS
 
 ::: annotation
-**Stores** hospitalization and subtype info
+**Store** hospitalization and subtype info
 :::
 
 ::::
@@ -933,6 +1010,10 @@ subtype_pkg1 = {
 
 ## wadoh_subtyping - not so simple things
 
+::::{.codewindow}
+
+:::{.editor .py name="match.py"}
+
 ```python
 # run ID matching - join to 
 # comma separate, need to explode the values in respnet
@@ -940,34 +1021,39 @@ respnet_explode = (
     pull_res.respnet
     .with_columns(
         pl.col("CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN").str.split(", "),
-        # pl.col("RESPNET_HOSPITALIZED_RHINO_MRN").str.split(","),
     )
     .explode(["CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN"])
     .with_columns(
         pl.col("RESPNET_HOSPITALIZED_RHINO_MRN").str.split(", "),
-        # pl.col("RESPNET_HOSPITALIZED_RHINO_MRN").str.split(","),
     )
     .explode(["RESPNET_HOSPITALIZED_RHINO_MRN"])
     .with_columns(
         pl.when(
-            (pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_null() & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_null())
+            (
+                pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_null() 
+                & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_null()
+            )
         )
         .then(None)
         .when(
-            (pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_not_null() & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_null())
+            (
+                pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_not_null() 
+                & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_null()
+            )
         )
         .then(pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN'))
         .when(
-            (pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_null() & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_not_null())
+            (
+                pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_null() 
+                & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_not_null()
+            )
         )
         .then(pl.col('RESPNET_HOSPITALIZED_RHINO_MRN'))
-        # need to code for when both MRNs are not null, which one to use? both?
-        # .when(
-        #     (pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_not_null() & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_not_null())
-        # )
-        # .then()
         .when(
-            (pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_not_null() & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_not_null())
+            (
+                pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN').is_not_null() 
+                & pl.col('RESPNET_HOSPITALIZED_RHINO_MRN').is_not_null()
+            )
         )
         .then(pl.col('CDC_N_COV_2019_HOSPITALIZED_RESPNET_MRN'))
         .otherwise(None)
@@ -995,7 +1081,312 @@ match_by_mrn = (
         (pl.col('SubmitterPatientNumber').is_not_null()) &
         (pl.col('SubmitterPatientNumber') != "")
     )
-    .select(mrn_base_cols + ['SubmitterPatientNumber','PatientFirstName','PatientLastName','SpecimenDateCollected','SpecimenDateReceived'])
+    .select(mrn_base_cols + [
+        'SubmitterPatientNumber',
+        'PatientFirstName',
+        'PatientLastName',
+        'SpecimenDateCollected',
+        'SpecimenDateReceived'
+        ]
+    )
 )
 
 ```
+
+:::
+::::
+
+## GitHub {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
+
+```{ojs}
+data = ({
+  name: "wadoh_subtyping",
+  children: [
+    {
+      name: "src",
+      children: [
+        {
+          name: "wadoh_subtyping",
+          children: [
+            { name: "__init__.py" },
+            { name: "main.py" },
+            { name: "config.py" },
+            { name: "utils.py" },
+            { name: "models.py" }
+          ]
+        }
+      ]
+    },
+    {
+      name: "tests",
+      children: [
+        { name: "__init__.py" },
+        { name: "test_main.py" },
+        { name: "test_utils.py" }
+      ]
+    },
+    {
+      name: "docs",
+      children: [
+        { name: "_quarto.yml" },
+        { name: "index.qmd" }
+      ]
+    },
+    {
+      name: ".github",
+      children: [
+        {
+          name: "workflows",
+          children: [
+            { name: "ci.yml" }
+          ]
+        }
+      ]
+    },
+    { name: "pyproject.toml" },
+    { name: "uv.lock" },
+    { name: "README.md" },
+    { name: "LICENSE" }
+  ]
+})
+```
+
+```{ojs}
+function collapsibleIndent(data, options = {}) {
+  const {
+    indentSpacing = 25,
+    lineSpacing = 35,
+    duration = 300,
+    radius = 6, // radius of curve for links
+    minHeight = 20,
+    boxSize = 20.5,
+    ease = d3.easeQuadInOut, // https://observablehq.com/@d3/easing-animations
+    marginLeft = Math.round(boxSize/2)+1,
+    marginRight = 120,
+    marginTop = 10,
+    marginBottom = 10,
+  } = options;
+  // WARNING: x and y are switched because the d3.tree is vertical rather than the default horizontal
+  // settings
+  
+  let plus  = {shapeFill: "black", shapeStroke: "black", textFill:"white", text: "+"}
+  let minus = {shapeFill: "white", shapeStroke: "black", textFill:"black", text: "−"}
+  
+  //
+  let tree = d3.tree()
+    .nodeSize([lineSpacing, indentSpacing])
+  
+  let root = d3.hierarchy(data); 
+  
+  root.x0 = 0;
+  root.y0 = 0; 
+  root.descendants().forEach((d, i) => {
+    d.id = i;
+    d._children = d.children;
+    if (d.depth && d.data.name.length !== 7) d.children = null;
+  });
+
+  let index = -1;
+  root.eachBefore(function(n) {++index}) // counts original number of items
+  
+  const svg = d3.create("svg")
+      .attr("viewBox", [-marginLeft, -marginTop, width, Math.max(minHeight, index * lineSpacing + marginTop + marginBottom )])
+      .style("font", "30px sans-serif")
+      .style("user-select", "none");
+
+  const gLink = svg.append("g")
+      .attr("fill", "none")
+      .attr("stroke", "#AAA")
+      .attr("stroke-width", .75);
+
+  const gNode = svg.append("g")
+      .attr("cursor", "pointer")
+      .attr("pointer-events", "all");
+
+  let indexLast
+  function update(source) {
+    const nodes = root.descendants().reverse();
+    const links = root.links();
+
+    // Compute the new tree layout.
+    tree(root);
+    
+    // node position function
+    index = -1;
+    root.eachBefore(function(n) {
+      n.x = ++index * lineSpacing;
+      n.y = n.depth * indentSpacing;
+    });
+
+    const height = Math.max(minHeight, index * lineSpacing + marginTop + marginBottom );
+
+    svg.transition().delay(indexLast<index ? 0 : duration).duration(0)
+      .attr("viewBox", [-marginLeft,  - marginTop, width, height])
+
+    // Update the nodes…
+    const node = gNode.selectAll("g")
+      .data(nodes, d => d.id);
+
+    // Enter any new nodes at the parent's previous position.
+    const nodeEnter = node.enter().append("g")
+        .attr("transform", d => `translate(${d.y},${source.x0})`)
+        .attr("fill-opacity", 0)
+        .attr("stroke-opacity", 0)
+        .on("click", (event, d) => {
+          
+          d.children = d.children ? null : d._children;
+          update(d);
+
+          charge
+            .attr("fill", d => d._children ? ( d.children ? minus.textFill : plus.textFill ) : "none")
+            .text(d => d._children ? ( d.children ? minus.text : plus.text ) : "");
+
+          box.attr("fill", d => d._children ? ( d.children ? minus.shapeFill : plus.shapeFill ) : "none")
+          
+        });
+
+    // check box
+    let box = nodeEnter.append("rect")
+      .attr("width", boxSize)
+      .attr("height", boxSize)
+      .attr("x", -boxSize/2)
+      .attr("y", -boxSize/2)
+      .attr("fill", d => d._children ? ( d.children ? minus.shapeFill : plus.shapeFill ) : "none")
+      .attr("stroke", d => d._children ? "black" : "none")
+      .attr("stroke-width", .5);
+
+    // check box symbol
+    let charge = nodeEnter.append("text")
+      .attr("x", 0 )
+      .attr("text-anchor", "middle")
+      .attr("alignment-baseline", "central")
+      .attr("fill", d => d._children ? ( d.children ? minus.textFill : plus.textFill ) : "none")
+      .text(d => d._children ? ( d.children ? "−" : "+" ) : "");
+
+    // label text
+    let label = nodeEnter.append("text")
+      .attr("x", 5+boxSize/2)
+      .attr("text-anchor", "start")
+      .attr("dy", "0.32em")
+      .text(d => d.data.name);
+    
+    // Transition nodes to their new position.
+    const nodeUpdate = node.merge(nodeEnter).transition().duration(duration).ease(ease)
+        .attr("transform", d => `translate(${d.y},${d.x})`)
+        .attr("fill-opacity", 1)
+        .attr("stroke-opacity", 1)
+
+    // Transition exiting nodes to the parent's new position.
+    const nodeExit = node.exit().transition().duration(duration).ease(ease).remove()
+        .attr("transform", d => `translate(${d.y},${source.x})`)
+        .attr("fill-opacity", 0)
+        .attr("stroke-opacity", 0);
+
+    // Update the links…
+    const link = gLink.selectAll("path")
+      .data(links, d => d.target.id);
+
+    // Enter any new links at the parent's previous position.
+    const linkEnter = link.enter().append("path")
+        .attr("stroke-opacity", 0)
+        .attr("d", d => makeLink([d.source.y,source.x] , [d.target.y + (d.target._children ? 0 : boxSize/2 ), source.x] , radius) );
+
+    // Transition links to their new position.
+    link.merge(linkEnter).transition().duration(duration).ease(ease)
+        .attr("stroke-opacity", 1)
+        .attr("d", d => makeLink([d.source.y,d.source.x] , [d.target.y + (d.target._children ? 0 : boxSize/2 ), d.target.x] , radius));
+
+    // Transition exiting nodes to the parent's new position.
+    link.exit().transition().duration(duration).ease(ease).remove()
+        .attr("stroke-opacity", 0)
+        .attr("d", d => makeLink([d.source.y, source.x] , [d.target.y + (d.target._children ? 0 : boxSize/2 ), source.x] , radius) );
+
+    // Stash the old positions for transition.
+    root.eachBefore(d => {
+      d.x0 = d.x;
+      d.y0 = d.y;
+    });
+
+    indexLast = index // to know if viewbox is expanding or contracting
+  }
+
+  update(root);
+
+  return svg.node();
+}
+```
+
+
+```{ojs}
+makeLink = (start, end, radius) => {
+  const path = d3.path();
+  const dh = 4/3*Math.tan(Math.PI/8) // tangent handle offset
+
+  //flip curve
+  let fx, fy
+  if(end[0] - start[0] == 0){ fx = 0}
+  else if(end[0] - start[0] > 0) {fx = 1} 
+  else {fx = -1}
+  if(end[1] - start[1] == 0){ fy = 0}
+  else if(end[1] - start[1] > 0) {fy = 1} 
+  else {fy = -1}
+
+  //scale curve when dx or dy is less than the radius
+  if( radius == 0 ){ fx=0; fy=0}
+  else{
+    fx *= Math.min( Math.abs(start[0]-end[0]), radius) / radius
+    fy *= Math.min( Math.abs(start[1]-end[1]), radius) / radius
+  }
+
+  path.moveTo(...start);
+  path.lineTo(...[start[0], end[1]-fy*radius]);
+  path.bezierCurveTo(
+    ...[start[0], end[1]+fy*radius*(dh-1)] , 
+    ...[start[0]+fx*radius*(1-dh), end[1]], 
+    ...[start[0]+fx*radius, end[1]]);
+  path.lineTo(...end);
+  return path
+}
+```
+
+```{ojs}
+collapsibleIndent(data)
+```
+
+
+## GitHub {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
+
+![](images/gh_folders.png){width=1000}
+
+## Release Cycle
+
+::::: circle-flow
+
+:::: item
+Plan
+
+::: annotation
+**Plan** define scope, goals, and success metrics up front
+:::
+
+::::
+
+:::: item
+Build
+
+::: annotation
+**Build** implement the work in small, reviewable increments
+:::
+
+::::
+
+:::: item
+Ship
+
+::: annotation
+**Ship** release to users and monitor for issues
+:::
+
+::::
+
+:::::
