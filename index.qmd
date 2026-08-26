@@ -17,11 +17,28 @@ execute:
   echo: false
 ---
 
-## Standards for Coding Projects {.center}
+## FluSurv-NET subtype data linkage {.center}
 
-_Using python and GitHub for RESP-NET Subtype Linkage_
+_Python, packages, github, and modular codebases_
+
+<!-- _Using respnet data linkage as an example_ -->
+
+<!-- _Using python and GitHub for RESP-NET Subtype Linkage_ -->
 
 Frank Aragona | Washington State Department of Health
+
+:::{.notes}
+A disclaimer before we start. If you've never used python or GitHub before, then this presentation
+might be overwhelming. I don't _want_ to overwhelm anyone, but I am going to cover a lot.
+
+We've learned a lot about software development over the last few years and this is the outcome.
+
+My goal for the presentation is to give at least one person a lightbulb moment.
+
+There are many topics here, all with their own details, but if at least one of those topics clicks with you and you implement it in your work, then I've done a good job.
+
+:::
+
 
 ```{ojs}
 chart2 = {
@@ -196,12 +213,16 @@ function hconcat(...elem) {
 - We would end up with giant scripts of 5000+ lines
 - It got very confusing and unstable when trying to make updates or fix bugs
 
+- In addition, we started creating more projects so we needed to copy and paste code throught
+
 - So, we worked on making our systems modular **that's really what this presentation is about**
 
 Specifically I'll show:
 
 - how to make a modular codebase (using python, but this can be applied to any other programming language)
 - and How and Why we should use github to store our code and documentation
+
+
 :::
 
 
@@ -850,8 +871,8 @@ pkg1 = {
   // Projects
   const projects = [
     { name: "wadoh_subtyping", color: colors[1] },
-    { name: "project2", color: colors[2] },
-    { name: "project3", color: colors[3] }
+    { name: "covid19_seq", color: colors[2] },
+    { name: "enterics_seq", color: colors[3] }
   ];
 
   projects.forEach((p, i) => {
@@ -995,9 +1016,9 @@ subtype_pkg1 = {
 {
   const l = aq.table({ 
     lab: [
-        "Harborview Medical Center",
-        "Kaiser Permanente - Seattle",
-        "Labcorp - Seattle Cherry Hill"
+        "Lab1",
+        "Lab2",
+        "Lab3"
     ]
   });
 
@@ -1134,6 +1155,22 @@ match_by_mrn = (
 :::
 ::::
 
+## wadoh_subtyping - easy to run
+
+:::{.smallframe}
+```bash
+uv add wadoh_subtyping
+```
+:::
+
+<br>
+
+:::{.smallframe}
+```bash
+uv run main.py
+```
+:::
+
 ## GitHub {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
 
 ::: {.notes}
@@ -1199,3 +1236,16 @@ If you want more
 - Make a release cycle 
 - Write better documentation
 - Copy our GitHub Action yaml
+
+## Links
+
+- [wadoh_raccoon](https://github.com/NW-PaGe/wadoh_raccoon) (main py package)
+- [wadoh_subtyping](https://github.com/WA-EIP/wadoh_subtyping)
+- [uv](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
+
+```bash
+uv init --package
+```
+
+
+
