@@ -8,7 +8,10 @@
 <link href="index_files/libs/quarto-html/light-border.css" rel="stylesheet">
 <link href="index_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <link href="index_files/libs/quarto-contrib/diagrams-0.2.0/diagrams.css" rel="stylesheet">
-<script src="index_files/libs/quarto-contrib/iconify-3.0.0/iconify-icon.min.js"></script><meta charset="utf-8">
+<script src="index_files/libs/quarto-contrib/iconify-3.0.0/iconify-icon.min.js"></script>
+<script src="index_files/libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="index_files/libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="index_files/libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet"><meta charset="utf-8">
   <meta name="generator" content="quarto-1.8.25">
 
   <title>index</title>
@@ -1407,37 +1410,11 @@ pip install wadoh_raccoon
 </div>
 </div>
 </section>
-<section id="wadoh_subtyping---easy-to-run" class="slide level2">
-<h2>wadoh_subtyping - easy to run</h2>
-<div class="smallframe move-down center">
-<div id="349e141f" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="" aria-hidden="true" tabindex="-1"></a>uv add wadoh_subtyping</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-</div>
-<p><br></p>
-<div class="smallframe move-down center">
-<div id="243cb85e" class="cell" data-execution_count="2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="" aria-hidden="true" tabindex="-1"></a>uv run main.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-</div>
-</section>
 <section id="wadoh_subtyping---tree" class="slide level2">
 <h2>wadoh_subtyping - tree</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div class="myframe">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode numberSource {bash} number-lines code-with-copy"><code class="sourceCode"><span id="cb20-1"><a href=""></a>.</span>
-<span id="cb20-2"><a href=""></a>├── .github</span>
-<span id="cb20-3"><a href=""></a>│&nbsp;&nbsp; └── workflows</span>
-<span id="cb20-4"><a href=""></a>├── docs</span>
-<span id="cb20-5"><a href=""></a>├── src</span>
-<span id="cb20-6"><a href=""></a>│&nbsp;&nbsp; └── testpy</span>
-<span id="cb20-7"><a href=""></a>├── tests</span>
-<span id="cb20-8"><a href=""></a>├── README.md</span>
-<span id="cb20-9"><a href=""></a>├── main.py</span>
-<span id="cb20-10"><a href=""></a>├── pyproject.toml</span>
-<span id="cb20-11"><a href=""></a>└── uv.lock</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<p><a href="assets/tree.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1"><img data-src="assets/tree.png"></a></p>
 </div><div class="fragment fade-in column" style="width:50%;">
 <ul>
 <li><code>.github</code> GitHub automation (run tests, build package, write changelog)</li>
@@ -1449,60 +1426,75 @@ pip install wadoh_raccoon
 </section>
 <section id="wadoh_subtyping---main.py" class="slide level2">
 <h2>wadoh_subtyping - main.py</h2>
-<div class="myframe center">
-<div id="3f809790" class="cell" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href=""></a><span class="im">from</span> wadoh_subtyping <span class="im">import</span> extract, load, matching, wrangle, rematch_funcs</span>
-<span id="cb21-2"><a href=""></a><span class="im">from</span> wadoh_subtyping <span class="im">import</span> helpers</span>
-<span id="cb21-3"><a href=""></a></span>
-<span id="cb21-4"><a href=""></a><span class="kw">def</span> main(write_data<span class="op">=</span><span class="va">False</span>):</span>
-<span id="cb21-5"><a href=""></a></span>
-<span id="cb21-6"><a href=""></a>    <span class="co"># run data pulls</span></span>
-<span id="cb21-7"><a href=""></a>    pull_res <span class="op">=</span> extract.run_pulls()</span>
-<span id="cb21-8"><a href=""></a></span>
-<span id="cb21-9"><a href=""></a>    <span class="co"># run transformations</span></span>
-<span id="cb21-10"><a href=""></a>    w_res <span class="op">=</span> wrangle.wrangle_phl(pull_res)</span>
-<span id="cb21-11"><a href=""></a></span>
-<span id="cb21-12"><a href=""></a>    <span class="co"># run matching</span></span>
-<span id="cb21-13"><a href=""></a>    res <span class="op">=</span> matching.match_phl(pull_res,w_res)</span>
-<span id="cb21-14"><a href=""></a></span>
-<span id="cb21-15"><a href=""></a>    <span class="co"># combined rosters from rematch, regular, and manually reviewed</span></span>
-<span id="cb21-16"><a href=""></a>    final_roster <span class="op">=</span> wrangle.combine_the_rosters(rematch,res, reviewed_roster)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="codewindow python center">
+<p>main.py</p>
+<div id="7ce3dc48" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href=""></a><span class="im">from</span> wadoh_subtyping <span class="im">import</span> extract, load, matching, wrangle, rematch_funcs</span>
+<span id="cb18-2"><a href=""></a><span class="im">from</span> wadoh_subtyping <span class="im">import</span> helpers</span>
+<span id="cb18-3"><a href=""></a></span>
+<span id="cb18-4"><a href=""></a><span class="kw">def</span> main(write_data<span class="op">=</span><span class="va">False</span>):</span>
+<span id="cb18-5"><a href=""></a></span>
+<span id="cb18-6"><a href=""></a>    <span class="co"># run data pulls</span></span>
+<span id="cb18-7"><a href=""></a>    pull_res <span class="op">=</span> extract.run_pulls()</span>
+<span id="cb18-8"><a href=""></a></span>
+<span id="cb18-9"><a href=""></a>    <span class="co"># run transformations</span></span>
+<span id="cb18-10"><a href=""></a>    w_res <span class="op">=</span> wrangle.wrangle_phl(pull_res)</span>
+<span id="cb18-11"><a href=""></a></span>
+<span id="cb18-12"><a href=""></a>    <span class="co"># run matching</span></span>
+<span id="cb18-13"><a href=""></a>    res <span class="op">=</span> matching.match_phl(pull_res,w_res)</span>
+<span id="cb18-14"><a href=""></a></span>
+<span id="cb18-15"><a href=""></a>    <span class="co"># combined rosters from rematch, regular, and manually reviewed</span></span>
+<span id="cb18-16"><a href=""></a>    final_roster <span class="op">=</span> wrangle.combine_the_rosters(rematch,res, reviewed_roster)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </section>
 <section id="wadoh_subtyping---src" class="slide level2">
 <h2>wadoh_subtyping - src</h2>
-<div class="myframe center">
-<div id="9574676c" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href=""></a><span class="kw">def</span> performing_lab() <span class="op">-&gt;</span> pl.Expr:</span>
-<span id="cb22-2"><a href=""></a>    <span class="co">""" Performing Lab </span></span>
-<span id="cb22-3"><a href=""></a></span>
-<span id="cb22-4"><a href=""></a><span class="co">    Usage</span></span>
-<span id="cb22-5"><a href=""></a><span class="co">    -----</span></span>
-<span id="cb22-6"><a href=""></a><span class="co">    To be used within a .with_columns statement to produce new columns in a dataframe</span></span>
-<span id="cb22-7"><a href=""></a><span class="co">    </span></span>
-<span id="cb22-8"><a href=""></a><span class="co">    Examples</span></span>
-<span id="cb22-9"><a href=""></a><span class="co">    --------</span></span>
-<span id="cb22-10"><a href=""></a><span class="co">    Defaults to PHL. which is `81594`</span></span>
-<span id="cb22-11"><a href=""></a></span>
-<span id="cb22-12"><a href=""></a><span class="co">    ```python</span></span>
-<span id="cb22-13"><a href=""></a><span class="co">    import polars as pl</span></span>
-<span id="cb22-14"><a href=""></a><span class="co">    import src.subtype_link.transformations as tf</span></span>
-<span id="cb22-15"><a href=""></a><span class="co">    # Main DataFrame (df)</span></span>
-<span id="cb22-16"><a href=""></a><span class="co">    df = pl.DataFrame({</span></span>
-<span id="cb22-17"><a href=""></a><span class="co">        "FIRST_NAME": ["john", "a-lice", "BOb"]</span></span>
-<span id="cb22-18"><a href=""></a><span class="co">    })</span></span>
-<span id="cb22-19"><a href=""></a><span class="co">    df = (</span></span>
-<span id="cb22-20"><a href=""></a><span class="co">        df</span></span>
-<span id="cb22-21"><a href=""></a><span class="co">        .with_columns(</span></span>
-<span id="cb22-22"><a href=""></a><span class="co">            PERFORMING_LAB_ENTIRE_REPORT = tf.performing_lab()</span></span>
-<span id="cb22-23"><a href=""></a><span class="co">        )</span></span>
-<span id="cb22-24"><a href=""></a><span class="co">    )</span></span>
-<span id="cb22-25"><a href=""></a><span class="co">    ```</span></span>
-<span id="cb22-26"><a href=""></a><span class="co">    """</span></span>
-<span id="cb22-27"><a href=""></a>  <span class="cf">return</span> pl.lit(<span class="st">"81596"</span>).alias(<span class="st">"PERFORMING_LAB_ENTIRE_REPORT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="codewindow python center">
+<p>tranform.py</p>
+<div id="6204cadf" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href=""></a><span class="kw">def</span> performing_lab() <span class="op">-&gt;</span> pl.Expr:</span>
+<span id="cb19-2"><a href=""></a>    <span class="co">""" Performing Lab </span></span>
+<span id="cb19-3"><a href=""></a></span>
+<span id="cb19-4"><a href=""></a><span class="co">    Usage</span></span>
+<span id="cb19-5"><a href=""></a><span class="co">    -----</span></span>
+<span id="cb19-6"><a href=""></a><span class="co">    To be used within a .with_columns statement to produce new columns in a dataframe</span></span>
+<span id="cb19-7"><a href=""></a><span class="co">    </span></span>
+<span id="cb19-8"><a href=""></a><span class="co">    Examples</span></span>
+<span id="cb19-9"><a href=""></a><span class="co">    --------</span></span>
+<span id="cb19-10"><a href=""></a><span class="co">    Defaults to PHL. which is `81594`</span></span>
+<span id="cb19-11"><a href=""></a></span>
+<span id="cb19-12"><a href=""></a><span class="co">    ```python</span></span>
+<span id="cb19-13"><a href=""></a><span class="co">    import polars as pl</span></span>
+<span id="cb19-14"><a href=""></a><span class="co">    import src.subtype_link.transformations as tf</span></span>
+<span id="cb19-15"><a href=""></a><span class="co">    # Main DataFrame (df)</span></span>
+<span id="cb19-16"><a href=""></a><span class="co">    df = pl.DataFrame({</span></span>
+<span id="cb19-17"><a href=""></a><span class="co">        "FIRST_NAME": ["john", "a-lice", "BOb"]</span></span>
+<span id="cb19-18"><a href=""></a><span class="co">    })</span></span>
+<span id="cb19-19"><a href=""></a><span class="co">    df = (</span></span>
+<span id="cb19-20"><a href=""></a><span class="co">        df</span></span>
+<span id="cb19-21"><a href=""></a><span class="co">        .with_columns(</span></span>
+<span id="cb19-22"><a href=""></a><span class="co">            PERFORMING_LAB_ENTIRE_REPORT = tf.performing_lab()</span></span>
+<span id="cb19-23"><a href=""></a><span class="co">        )</span></span>
+<span id="cb19-24"><a href=""></a><span class="co">    )</span></span>
+<span id="cb19-25"><a href=""></a><span class="co">    ```</span></span>
+<span id="cb19-26"><a href=""></a><span class="co">    """</span></span>
+<span id="cb19-27"><a href=""></a>  <span class="cf">return</span> pl.lit(<span class="st">"81596"</span>).alias(<span class="st">"PERFORMING_LAB_ENTIRE_REPORT"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
+</section>
+<section id="wadoh_subtyping---easy-to-run" class="slide level2">
+<h2>wadoh_subtyping - easy to run</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="codewindow terminal">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode numberSource {sass} number-lines code-with-copy"><code class="sourceCode"><span id="cb20-1"><a href=""></a>uv add wadoh_subtyping</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><p><br></p><div class="column" style="width:50%;">
+<div class="codewindow terminal">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode numberSource {sass} number-lines code-with-copy"><code class="sourceCode"><span id="cb21-1"><a href=""></a>uv run main.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div></div>
 </section>
 <section id="github" class="slide level2">
 <h2>GitHub <iconify-icon role="img" inline="" icon="line-md:github-twotone" style="color:#48BDF3;" aria-label="Icon github-twotone from line-md Iconify.design set." title="Icon github-twotone from line-md Iconify.design set."></iconify-icon></h2>
@@ -1581,10 +1573,15 @@ pip install wadoh_raccoon
 <ul>
 <li><a href="https://github.com/NW-PaGe/wadoh_raccoon">wadoh_raccoon</a> (main py package)</li>
 <li><a href="https://github.com/WA-EIP/wadoh_subtyping">wadoh_subtyping</a></li>
-<li><a href="https://www.youtube.com/watch?v=zgSQr0d5EVg&amp;t=38s">uv</a></li>
+<li><a href="https://www.youtube.com/watch?v=EpTkT6Rkgbs">R package development</a></li>
+<li><a href="https://docs.astral.sh/uv/">uv</a> python package manager
+<ul>
+<li>what is <a href="https://www.youtube.com/watch?v=zgSQr0d5EVg&amp;t=38s">uv?</a></li>
+<li>publish a <a href="https://www.youtube.com/watch?v=rM1SqONoPXs">package with uv</a></li>
+</ul></li>
 </ul>
-<div class="smallframe">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb23-1"><a href=""></a><span class="ex">uv</span> init <span class="at">--package</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="codewindow terminal">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode numberSource {sass} number-lines code-with-copy"><code class="sourceCode"><span id="cb22-1"><a href=""></a>uv init --package my_package</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 </section>
@@ -4038,6 +4035,38 @@ pip install wadoh_raccoon
       if (hasAnn) placeAnnotations(container, svg, annAnchors, cx, rAnchor, H, ANN_GAP);
     }
     </script>
+    <script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+    (function() {
+      let previousOnload = window.onload;
+      window.onload = () => {
+        if (previousOnload) {
+          previousOnload();
+        }
+        lightboxQuarto.on('slide_before_load', (data) => {
+          const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+          const href = trigger.getAttribute('href');
+          if (href !== null) {
+            const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+            if (imgEl !== null) {
+              const srcAttr = imgEl.getAttribute("src");
+              if (srcAttr && srcAttr.startsWith("data:")) {
+                slideConfig.href = srcAttr;
+              }
+            }
+          } 
+        });
+      
+        lightboxQuarto.on('slide_after_load', (data) => {
+          const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(slideNode);
+          }
+        });
+      
+      };
+      
+    })();
+              </script>
     
 
 </body></html>
