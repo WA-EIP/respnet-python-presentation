@@ -1155,49 +1155,14 @@ match_by_mrn = (
 :::
 ::::
 
-## wadoh_subtyping - easy to run
-
-:::{.smallframe .window-style .move-down .center}
-```{python}
-#| code-line-numbers: false
-#| eval: false
-#| echo: true
-uv add wadoh_subtyping
-```
-::: 
-
-<br>
-
-:::{.smallframe .window-style .move-down .center}
-```{python}
-#| code-line-numbers: false
-#| eval: false
-#| echo: true
-uv run main.py
-```
-:::
-
-
 
 ## wadoh_subtyping - tree
 
 ::: columns
 ::: {.column width="50%"}
-:::{.myframe .window-style}
-```{bash}
-.
-├── .github
-│   └── workflows
-├── docs
-├── src
-│   └── testpy
-├── tests
-├── README.md
-├── main.py
-├── pyproject.toml
-└── uv.lock
-```
-:::
+
+![](assets/tree.png)
+
 
 :::
 
@@ -1211,7 +1176,8 @@ uv run main.py
 
 ## wadoh_subtyping - main.py
 
-:::{.myframe .center}
+:::{.codewindow .python .center}
+main.py
 ```{python}
 #| eval: false
 #| echo: true
@@ -1236,7 +1202,8 @@ def main(write_data=False):
 
 ## wadoh_subtyping - src 
 
-:::{.myframe .center}
+:::{.codewindow .python .center}
+tranform.py
 ```{python}
 #| eval: false
 #| echo: true
@@ -1270,6 +1237,30 @@ def performing_lab() -> pl.Expr:
 
 ```
 :::
+
+## wadoh_subtyping - easy to run
+
+::::{.columns}
+:::{.column width="50%"}
+:::{.codewindow .terminal}
+```{sass}
+uv add wadoh_subtyping
+```
+::: 
+:::
+
+<br>
+
+:::{.column width="50%"}
+:::{.codewindow .terminal}
+```{sass}
+uv run main.py
+```
+:::
+:::
+
+::::
+
 
 
 ## GitHub {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
@@ -1342,11 +1333,17 @@ If you want more
 
 - [wadoh_raccoon](https://github.com/NW-PaGe/wadoh_raccoon) (main py package)
 - [wadoh_subtyping](https://github.com/WA-EIP/wadoh_subtyping)
-- [uv](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
+- [R package development](https://www.youtube.com/watch?v=EpTkT6Rkgbs)
+- [uv](https://docs.astral.sh/uv/) python package manager
+    -    what is [uv?](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
+    -    publish a [package with uv](https://www.youtube.com/watch?v=rM1SqONoPXs)
 
-```bash
-uv init --package
+:::{.codewindow .terminal}
+```{sass}
+uv init --package my_package
 ```
+
+:::
 
 
 
