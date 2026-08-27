@@ -1157,19 +1157,120 @@ match_by_mrn = (
 
 ## wadoh_subtyping - easy to run
 
-:::{.smallframe}
-```bash
+:::{.smallframe .window-style .move-down .center}
+```{python}
+#| code-line-numbers: false
+#| eval: false
+#| echo: true
 uv add wadoh_subtyping
 ```
-:::
+::: 
 
 <br>
 
-:::{.smallframe}
-```bash
+:::{.smallframe .window-style .move-down .center}
+```{python}
+#| code-line-numbers: false
+#| eval: false
+#| echo: true
 uv run main.py
 ```
 :::
+
+
+
+## wadoh_subtyping - tree
+
+::: columns
+::: {.column width="50%"}
+:::{.myframe .window-style}
+```{bash}
+.
+├── .github
+│   └── workflows
+├── docs
+├── src
+│   └── testpy
+├── tests
+├── README.md
+├── main.py
+├── pyproject.toml
+└── uv.lock
+```
+:::
+
+:::
+
+::: {.fragment .fade-in .column width="50%"}
+-   `.github` GitHub automation (run tests, build package, write changelog)
+-   `docs/` where documentation lives
+-   `src/` source code (functions)
+-   `main.py` trigger script, runs the whole process
+:::
+:::
+
+## wadoh_subtyping - main.py
+
+:::{.myframe .center}
+```{python}
+#| eval: false
+#| echo: true
+from wadoh_subtyping import extract, load, matching, wrangle, rematch_funcs
+from wadoh_subtyping import helpers
+
+def main(write_data=False):
+
+    # run data pulls
+    pull_res = extract.run_pulls()
+
+    # run transformations
+    w_res = wrangle.wrangle_phl(pull_res)
+
+    # run matching
+    res = matching.match_phl(pull_res,w_res)
+
+    # combined rosters from rematch, regular, and manually reviewed
+    final_roster = wrangle.combine_the_rosters(rematch,res, reviewed_roster)
+```
+:::
+
+## wadoh_subtyping - src 
+
+:::{.myframe .center}
+```{python}
+#| eval: false
+#| echo: true
+def performing_lab() -> pl.Expr:
+    """ Performing Lab 
+
+    Usage
+    -----
+    To be used within a .with_columns statement to produce new columns in a dataframe
+    
+    Examples
+    --------
+    Defaults to PHL. which is `81594`
+
+    ```python
+    import polars as pl
+    import src.subtype_link.transformations as tf
+    # Main DataFrame (df)
+    df = pl.DataFrame({
+        "FIRST_NAME": ["john", "a-lice", "BOb"]
+    })
+    df = (
+        df
+        .with_columns(
+            PERFORMING_LAB_ENTIRE_REPORT = tf.performing_lab()
+        )
+    )
+    ```
+    """
+  return pl.lit("81596").alias("PERFORMING_LAB_ENTIRE_REPORT")
+
+```
+:::
+
 
 ## GitHub {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
 
