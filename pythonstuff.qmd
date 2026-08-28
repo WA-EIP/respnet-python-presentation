@@ -346,6 +346,12 @@ REDCap
 
 ## How do we do this 
 
+:::{.notes}
+- We took apart the code and rebuilt it with modularity in mind
+- we rebuilt it with small blocks
+- like a car, whenever we get a flat tire we can just replace the tire instead of digging through the entire car's engineering to fix it
+:::
+
 :::{.columns}
 
 :::{.column width="50%"}
