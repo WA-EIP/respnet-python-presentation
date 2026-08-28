@@ -2897,15 +2897,100 @@
 </section>
 <section id="how-to-create-a-similar-python-project" class="slide level2">
 <h2>How to create a similar python project</h2>
-<ul>
-<li><a href="https://docs.astral.sh/uv/">uv</a> python package manager
-<ul>
-<li>what is <a href="https://www.youtube.com/watch?v=zgSQr0d5EVg&amp;t=38s">uv?</a></li>
-<li>publish a <a href="https://www.youtube.com/watch?v=rM1SqONoPXs">package with uv</a></li>
-</ul></li>
-<li><a href="https://docs.pola.rs/user-guide/getting-started/">polars</a> for working with dataframes (it’s like dplyr with data.table speed + lazy + streaming)</li>
-<li><a href="https://positron.posit.co/">positron</a></li>
-</ul>
+<div class="columns">
+<div class="column" style="width:40%;">
+<div class="codewindow terminal codewindow-dark" name="00-create-package">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb28-1"><a href=""></a><span class="ex">uv</span> init <span class="at">--package</span> pkg</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="codewindow terminal codewindow-dark" name="01-install-packages">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb29-1"><a href=""></a><span class="ex">uv</span> add polars pyodbc redcap</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="codewindow terminal" name="03-run-code" data-bg="#fdf6e3" data-header-bg="#eee8d5" data-shadow-color="#93a1a1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode numberSource bash number-lines code-with-copy"><code class="sourceCode bash"><span id="cb30-1"><a href=""></a><span class="ex">uv</span> run main.py</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:60%;">
+<div class="codewindow codewindow-dark">
+<div class="editor fragment python" name="src/pkg/extract.py">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href=""></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb31-2"><a href=""></a></span>
+<span id="cb31-3"><a href=""></a><span class="kw">def</span> pull_data():</span>
+<span id="cb31-4"><a href=""></a></span>
+<span id="cb31-5"><a href=""></a>    df <span class="op">=</span> pl.DataFrame({</span>
+<span id="cb31-6"><a href=""></a>        <span class="st">"SpecimenSource"</span>: [</span>
+<span id="cb31-7"><a href=""></a>            <span class="st">"Resipiratory: nasal swab"</span>,</span>
+<span id="cb31-8"><a href=""></a>            <span class="st">"Nasopharyngeal Swab (NP)"</span>,</span>
+<span id="cb31-9"><a href=""></a>            <span class="st">"Conjunctival Swab"</span></span>
+<span id="cb31-10"><a href=""></a>        ]</span>
+<span id="cb31-11"><a href=""></a>    })</span>
+<span id="cb31-12"><a href=""></a>    <span class="cf">return</span> df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<div class="editor fragment python" name="src/pkg/transform.py">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href=""></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb32-2"><a href=""></a></span>
+<span id="cb32-3"><a href=""></a><span class="kw">def</span> wdrs_specimen_source(wdrs_spec_source_col: <span class="bu">str</span>):</span>
+<span id="cb32-4"><a href=""></a></span>
+<span id="cb32-5"><a href=""></a>        wdrs_spec_source_map <span class="op">=</span> {</span>
+<span id="cb32-6"><a href=""></a>            <span class="co"># Nasal Swabs &gt;&gt;&gt; Nose</span></span>
+<span id="cb32-7"><a href=""></a>            <span class="st">'Nasal Swabs'</span>: <span class="st">'G_NOSE'</span>,</span>
+<span id="cb32-8"><a href=""></a>            <span class="st">'Respiratory: nasal wash'</span>: <span class="st">'G_NOSE'</span>,</span>
+<span id="cb32-9"><a href=""></a>            <span class="st">'Respiratory: nasal swab'</span>: <span class="st">'G_NOSE'</span>,</span>
+<span id="cb32-10"><a href=""></a></span>
+<span id="cb32-11"><a href=""></a>            <span class="co"># Nasopharyngeal Swab (NP)</span></span>
+<span id="cb32-12"><a href=""></a>            <span class="st">'Nasopharyngeal Swab (NP)'</span>: <span class="st">'G_NP_SWAB'</span>, </span>
+<span id="cb32-13"><a href=""></a>            <span class="st">'Respiratory: NP swab'</span>: <span class="st">'G_NP_SWAB'</span>,</span>
+<span id="cb32-14"><a href=""></a>            </span>
+<span id="cb32-15"><a href=""></a>            <span class="co"># Oropharyngeal Swab</span></span>
+<span id="cb32-16"><a href=""></a>            <span class="st">'Oropharyngeal Swab'</span>: <span class="st">'G_OROPHARYNX'</span>,</span>
+<span id="cb32-17"><a href=""></a>            </span>
+<span id="cb32-18"><a href=""></a>            <span class="co"># Conjunctival Swab Eye or S_OCULAR?</span></span>
+<span id="cb32-19"><a href=""></a>            <span class="st">'Conjunctival Swab'</span>: <span class="st">'G_EYE'</span>,</span>
+<span id="cb32-20"><a href=""></a>            <span class="st">'Conjunctival swab'</span>: <span class="st">'G_EYE'</span>,</span>
+<span id="cb32-21"><a href=""></a>            </span>
+<span id="cb32-22"><a href=""></a>            <span class="co"># Sputum</span></span>
+<span id="cb32-23"><a href=""></a>            <span class="st">'Sputum'</span>: <span class="st">'G_SPUTUM'</span></span>
+<span id="cb32-24"><a href=""></a>        }</span>
+<span id="cb32-25"><a href=""></a></span>
+<span id="cb32-26"><a href=""></a>        <span class="cf">return</span>(</span>
+<span id="cb32-27"><a href=""></a>            pl.col(wdrs_spec_source_col).replace_strict(wdrs_spec_source_map,default<span class="op">=</span><span class="va">None</span>)</span>
+<span id="cb32-28"><a href=""></a>        )</span>
+<span id="cb32-29"><a href=""></a></span>
+<span id="cb32-30"><a href=""></a><span class="kw">def</span> run_all_transformations(df,wdrs_spec_source_col<span class="op">=</span><span class="st">'SpecimenSource'</span>):</span>
+<span id="cb32-31"><a href=""></a>    final <span class="op">=</span> (</span>
+<span id="cb32-32"><a href=""></a>        df</span>
+<span id="cb32-33"><a href=""></a>        .with_columns(</span>
+<span id="cb32-34"><a href=""></a>            WDRS_SPECIMEN_SOURCE<span class="op">=</span>wdrs_specimen_source(</span>
+<span id="cb32-35"><a href=""></a>                wdrs_spec_source_col<span class="op">=</span><span class="st">'SpecimenSource'</span></span>
+<span id="cb32-36"><a href=""></a>            )</span>
+<span id="cb32-37"><a href=""></a>        )</span>
+<span id="cb32-38"><a href=""></a>    )</span>
+<span id="cb32-39"><a href=""></a>    <span class="cf">return</span> final</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<div class="editor fragment python" name="main.py">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href=""></a><span class="im">from</span> pkg <span class="im">import</span> extract, transform <span class="im">as</span> tf</span>
+<span id="cb33-2"><a href=""></a></span>
+<span id="cb33-3"><a href=""></a><span class="kw">def</span> main():</span>
+<span id="cb33-4"><a href=""></a></span>
+<span id="cb33-5"><a href=""></a>    <span class="co"># Pull Data</span></span>
+<span id="cb33-6"><a href=""></a>    df <span class="op">=</span> extract.pull_data()</span>
+<span id="cb33-7"><a href=""></a></span>
+<span id="cb33-8"><a href=""></a>    <span class="co"># Transform Data</span></span>
+<span id="cb33-9"><a href=""></a>    final <span class="op">=</span> tf.run_all_transformations(df,wdrs_spec_source_col<span class="op">=</span><span class="st">'SpecimenSource'</span>)</span>
+<span id="cb33-10"><a href=""></a></span>
+<span id="cb33-11"><a href=""></a>    <span class="co"># Print the output</span></span>
+<span id="cb33-12"><a href=""></a>    <span class="bu">print</span>(final)</span>
+<span id="cb33-13"><a href=""></a></span>
+<span id="cb33-14"><a href=""></a><span class="co"># boilerplate, run the script inside the main.py file</span></span>
+<span id="cb33-15"><a href=""></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb33-16"><a href=""></a>    main()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+</div></div>
 </section>
 <section id="section-1" class="slide level2">
 <h2></h2>
@@ -2947,59 +3032,63 @@
 </figure>
 </div>
 </section>
+<section id="why-positron" class="slide level2">
+<h2>Why positron?</h2>
+<p><a href="images/positron.gif" class="lightbox" data-gallery="quarto-lightbox-gallery-7"><img data-src="images/positron.gif"></a></p>
+</section>
 <section id="polars" class="slide level2">
 <h2>polars</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <div class="codewindow r active codewindow-dark" name="dplyr">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href=""></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb28-2"><a href=""></a>df <span class="sc">|&gt;</span></span>
-<span id="cb28-3"><a href=""></a>  <span class="fu">filter</span>(sepal_length <span class="sc">&gt;</span> <span class="dv">5</span>) <span class="sc">|&gt;</span></span>
-<span id="cb28-4"><a href=""></a>  <span class="fu">mutate</span>(<span class="at">petal_ratio =</span> petal_length <span class="sc">/</span> sepal_length) <span class="sc">|&gt;</span></span>
-<span id="cb28-5"><a href=""></a>  <span class="fu">group_by</span>(species) <span class="sc">|&gt;</span></span>
-<span id="cb28-6"><a href=""></a>  <span class="fu">summarise</span>(</span>
-<span id="cb28-7"><a href=""></a>    <span class="at">mean_ratio =</span> <span class="fu">mean</span>(petal_ratio),</span>
-<span id="cb28-8"><a href=""></a>    <span class="at">n =</span> <span class="fu">n</span>()</span>
-<span id="cb28-9"><a href=""></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href=""></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb34-2"><a href=""></a>df <span class="sc">|&gt;</span></span>
+<span id="cb34-3"><a href=""></a>  <span class="fu">filter</span>(sepal_length <span class="sc">&gt;</span> <span class="dv">5</span>) <span class="sc">|&gt;</span></span>
+<span id="cb34-4"><a href=""></a>  <span class="fu">mutate</span>(<span class="at">petal_ratio =</span> petal_length <span class="sc">/</span> sepal_length) <span class="sc">|&gt;</span></span>
+<span id="cb34-5"><a href=""></a>  <span class="fu">group_by</span>(species) <span class="sc">|&gt;</span></span>
+<span id="cb34-6"><a href=""></a>  <span class="fu">summarise</span>(</span>
+<span id="cb34-7"><a href=""></a>    <span class="at">mean_ratio =</span> <span class="fu">mean</span>(petal_ratio),</span>
+<span id="cb34-8"><a href=""></a>    <span class="at">n =</span> <span class="fu">n</span>()</span>
+<span id="cb34-9"><a href=""></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </div><div class="column" style="width:50%;">
 <div class="codewindow codewindow-dark">
 <div class="python editor fragment" name="polars">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href=""></a>import polars as pl</span>
-<span id="cb29-2"><a href=""></a>result <span class="ot">=</span> (</span>
-<span id="cb29-3"><a href=""></a>    df</span>
-<span id="cb29-4"><a href=""></a>    <span class="fu">.filter</span>(<span class="fu">pl.col</span>(<span class="st">"sepal_length"</span>) <span class="sc">&gt;</span> <span class="dv">5</span>)</span>
-<span id="cb29-5"><a href=""></a>    <span class="fu">.with_columns</span>(</span>
-<span id="cb29-6"><a href=""></a>        (<span class="fu">pl.col</span>(<span class="st">"petal_length"</span>) <span class="sc">/</span> <span class="fu">pl.col</span>(<span class="st">"sepal_length"</span>))</span>
-<span id="cb29-7"><a href=""></a>        <span class="fu">.alias</span>(<span class="st">"petal_ratio"</span>)</span>
-<span id="cb29-8"><a href=""></a>    )</span>
-<span id="cb29-9"><a href=""></a>    <span class="fu">.group_by</span>(<span class="st">"species"</span>)</span>
-<span id="cb29-10"><a href=""></a>    <span class="fu">.agg</span>(</span>
-<span id="cb29-11"><a href=""></a>        <span class="fu">pl.col</span>(<span class="st">"petal_ratio"</span>)<span class="fu">.mean</span>()<span class="fu">.alias</span>(<span class="st">"mean_ratio"</span>),</span>
-<span id="cb29-12"><a href=""></a>        <span class="fu">pl.len</span>()<span class="fu">.alias</span>(<span class="st">"n"</span>)</span>
-<span id="cb29-13"><a href=""></a>    )</span>
-<span id="cb29-14"><a href=""></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href=""></a>import polars as pl</span>
+<span id="cb35-2"><a href=""></a>result <span class="ot">=</span> (</span>
+<span id="cb35-3"><a href=""></a>    df</span>
+<span id="cb35-4"><a href=""></a>    <span class="fu">.filter</span>(<span class="fu">pl.col</span>(<span class="st">"sepal_length"</span>) <span class="sc">&gt;</span> <span class="dv">5</span>)</span>
+<span id="cb35-5"><a href=""></a>    <span class="fu">.with_columns</span>(</span>
+<span id="cb35-6"><a href=""></a>        (<span class="fu">pl.col</span>(<span class="st">"petal_length"</span>) <span class="sc">/</span> <span class="fu">pl.col</span>(<span class="st">"sepal_length"</span>))</span>
+<span id="cb35-7"><a href=""></a>        <span class="fu">.alias</span>(<span class="st">"petal_ratio"</span>)</span>
+<span id="cb35-8"><a href=""></a>    )</span>
+<span id="cb35-9"><a href=""></a>    <span class="fu">.group_by</span>(<span class="st">"species"</span>)</span>
+<span id="cb35-10"><a href=""></a>    <span class="fu">.agg</span>(</span>
+<span id="cb35-11"><a href=""></a>        <span class="fu">pl.col</span>(<span class="st">"petal_ratio"</span>)<span class="fu">.mean</span>()<span class="fu">.alias</span>(<span class="st">"mean_ratio"</span>),</span>
+<span id="cb35-12"><a href=""></a>        <span class="fu">pl.len</span>()<span class="fu">.alias</span>(<span class="st">"n"</span>)</span>
+<span id="cb35-13"><a href=""></a>    )</span>
+<span id="cb35-14"><a href=""></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 <div class="python editor fragment" name="pandas" data-bg="#fdf6e3" data-header-bg="#eee8d5" data-shadow-color="#93a1a1">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href=""></a>import pandas as pl</span>
-<span id="cb30-2"><a href=""></a>result <span class="ot">=</span> (</span>
-<span id="cb30-3"><a href=""></a>    df[df[<span class="st">"sepal_length"</span>] <span class="sc">&gt;</span> <span class="dv">5</span>]</span>
-<span id="cb30-4"><a href=""></a>    <span class="fu">.assign</span>(</span>
-<span id="cb30-5"><a href=""></a>        <span class="at">petal_ratio=</span>lambda x<span class="sc">:</span></span>
-<span id="cb30-6"><a href=""></a>            x[<span class="st">"petal_length"</span>] <span class="sc">/</span> x[<span class="st">"sepal_length"</span>]</span>
-<span id="cb30-7"><a href=""></a>    )</span>
-<span id="cb30-8"><a href=""></a>    <span class="fu">.groupby</span>(<span class="st">"species"</span>)</span>
-<span id="cb30-9"><a href=""></a>    <span class="fu">.agg</span>(</span>
-<span id="cb30-10"><a href=""></a>        <span class="at">mean_ratio=</span>(<span class="st">"petal_ratio"</span>, <span class="st">"mean"</span>),</span>
-<span id="cb30-11"><a href=""></a>        <span class="at">n=</span>(<span class="st">"petal_ratio"</span>, <span class="st">"size"</span>)</span>
-<span id="cb30-12"><a href=""></a>    )</span>
-<span id="cb30-13"><a href=""></a>    <span class="fu">.reset_index</span>()</span>
-<span id="cb30-14"><a href=""></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href=""></a>import pandas as pl</span>
+<span id="cb36-2"><a href=""></a>result <span class="ot">=</span> (</span>
+<span id="cb36-3"><a href=""></a>    df[df[<span class="st">"sepal_length"</span>] <span class="sc">&gt;</span> <span class="dv">5</span>]</span>
+<span id="cb36-4"><a href=""></a>    <span class="fu">.assign</span>(</span>
+<span id="cb36-5"><a href=""></a>        <span class="at">petal_ratio=</span>lambda x<span class="sc">:</span></span>
+<span id="cb36-6"><a href=""></a>            x[<span class="st">"petal_length"</span>] <span class="sc">/</span> x[<span class="st">"sepal_length"</span>]</span>
+<span id="cb36-7"><a href=""></a>    )</span>
+<span id="cb36-8"><a href=""></a>    <span class="fu">.groupby</span>(<span class="st">"species"</span>)</span>
+<span id="cb36-9"><a href=""></a>    <span class="fu">.agg</span>(</span>
+<span id="cb36-10"><a href=""></a>        <span class="at">mean_ratio=</span>(<span class="st">"petal_ratio"</span>, <span class="st">"mean"</span>),</span>
+<span id="cb36-11"><a href=""></a>        <span class="at">n=</span>(<span class="st">"petal_ratio"</span>, <span class="st">"size"</span>)</span>
+<span id="cb36-12"><a href=""></a>    )</span>
+<span id="cb36-13"><a href=""></a>    <span class="fu">.reset_index</span>()</span>
+<span id="cb36-14"><a href=""></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </div>
