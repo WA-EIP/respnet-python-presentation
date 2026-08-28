@@ -2,6 +2,7 @@
 format: 
     revealjs: 
         theme: [default, assets/styles.scss]
+        syntax-highlighting: vim-dark
         width: 1500
         chalkboard: true
 revealjs-plugins:
@@ -19,6 +20,9 @@ execute:
 
 _Python, packages, github, and modular codebases_
 
+<!-- _Using respnet data linkage as an example_ -->
+
+<!-- _Using python and GitHub for RESP-NET Subtype Linkage_ -->
 
 Frank Aragona | Washington State Department of Health
 
@@ -221,8 +225,166 @@ Specifically I'll show:
 :::
 
 
-- How we **solved a subtyping problem** (LIMS database does not connect to WDRS)
-- How we used **python** to solve the problem (using the subtyping package as an example)
+- How we solved a subtyping **data linkage problem** using **python**
+- How to **create a python project**
+
+## Problem
+
+- LIMS database does not connect to WDRS
+
+
+::::: process
+
+:::: item
+Lab
+
+::: annotation
+Take sample, **send** specimens to PHL
+:::
+
+::::
+
+:::: item
+PHL
+
+::: annotation
+**Subtype** the specimen, store in LIMS
+:::
+
+::::
+
+:::: {.item color="hotpink"}
+DIQA
+
+::: annotation
+**Join** subtype to hospitalization record in WDRS
+:::
+
+::::
+
+:::: item
+WDRS
+
+::: annotation
+**Store** hospitalization and subtype info
+:::
+
+::::
+
+:::: item
+REDCap
+
+::: annotation
+**Report** hospitalization and subtype info to users
+:::
+
+::::
+
+:::::
+
+## Solution
+
+- Used python to transform data and link LIMS records to WDRS
+
+```{ojs}
+{
+  const l = aq.table({ 
+    id1: [1, 2, 3], 
+    name1: ["JADE", "zero", "scorpion"], 
+    date: ["2025-04-03", "2025-05-03", "2025-08-24"] 
+  });
+
+  const r = aq.table({ 
+    name2: ["Jade", "subzero", "rain"], 
+    subtype: ["H1", "H3", "H5"] 
+  });
+
+
+  const j = aq.table({
+    id: [1, 2, 3], 
+    date: ["2025-04-03", "2025-05-03", "2025-08-24"] ,
+    subtype: ["H1", "H3", null] 
+    // score: [1.0, 0.89]
+  });
+
+  const [cl, cr] = categories;
+
+  const color = (f, c) => (i, r) =>
+    i < 0 || j.get(f, r) == null ? null : c;
+
+  const format = v => v == null ? '∅' : v + '';
+
+  const opt = {
+    color: {
+        id: color('id', cl),
+        date: color('date', cl),
+        subtype: color('subtype', cr)
+    },
+    format: {
+      id1: format,
+      date: format,
+      name1: format,
+      name2: format,
+      subtype: format,
+    //   score: format
+    }
+  };
+
+  const container = html`<div style="text-align:center;"></div>`;
+
+  container.appendChild(
+    hconcat(
+      l.view({ color: i => i < 0 ? null : cl }),
+      call(r.view({ color: i => i < 0 ? null : cr }), ""),
+      j.view(opt)
+    )
+  );
+
+  return container;
+}
+```
+
+## How do we do this 
+
+:::{.columns}
+
+:::{.column width="50%"}
+:::{.codewindow .python .codewindow-dark}
+old_main.py
+
+{{< include _seq_main_ex.qmd >}}
+
+:::
+:::
+
+:::{.column width="50%"}
+:::{.codewindow .python .active .codewindow-dark}
+main.py
+```{python}
+#| eval: false
+#| echo: true
+from wadoh_subtyping import extract, load, matching, wrangle
+
+def main(write_data=False):
+
+    # run data pulls
+    pull_res = extract.run_pulls()
+
+    # run transformations
+    w_res = wrangle.wrangle_phl(pull_res)
+
+    # run matching
+    res = matching.match_phl(pull_res,w_res)
+
+    # combined rosters from rematch, regular, and manually reviewed
+    final_roster = wrangle.combine_the_rosters(rematch,res, reviewed_roster)
+```
+:::
+:::
+:::
+
+
+## Modularity
 
 ```{ojs}
 main_pkg = {
@@ -358,44 +520,6 @@ main_pkg = {
 }
 ```
 
-## Modularity
-
-:::{.columns}
-
-:::{.column width="50%"}
-:::{.codewindow .python}
-old_main.py
-
-{{< include _seq_main_ex.qmd >}}
-
-:::
-:::
-
-:::{.column width="50%"}
-:::{.codewindow .python .center}
-main.py
-```{python}
-#| eval: false
-#| echo: true
-from wadoh_subtyping import extract, load, matching, wrangle
-
-def main(write_data=False):
-
-    # run data pulls
-    pull_res = extract.run_pulls()
-
-    # run transformations
-    w_res = wrangle.wrangle_phl(pull_res)
-
-    # run matching
-    res = matching.match_phl(pull_res,w_res)
-
-    # combined rosters from rematch, regular, and manually reviewed
-    final_roster = wrangle.combine_the_rosters(rematch,res, reviewed_roster)
-```
-:::
-:::
-:::
 
 ## Modularity
 
@@ -788,7 +912,6 @@ one = {
 }
 ```
 
-
 ## 
 
 ```{ojs}
@@ -1066,7 +1189,7 @@ subtype_pkg1 = {
 
 ## wadoh_subtyping - not so simple things
 
-::::{.codewindow}
+::::{.codewindow .codewindow-dark}
 
 :::{.editor .py name="match.py"}
 
@@ -1173,7 +1296,7 @@ match_by_mrn = (
 
 ## wadoh_subtyping - main.py
 
-:::{.codewindow .python .center}
+:::{.codewindow .codewindow-dark .python .center}
 main.py
 ```{python}
 #| eval: false
@@ -1199,8 +1322,33 @@ def main(write_data=False):
 
 ## wadoh_subtyping - src 
 
-:::{.codewindow .python .center}
-tranform.py
+::::{.codewindow .codewindow-dark}
+:::{.editor .fragment .python name="extract.py"}
+```{python}
+#| eval: false
+#| echo: true
+import pyodbc
+import polars as pl
+
+def phl_tables(query, dbx: bool=False) -> PHLTables:
+
+    conn_lims = pyodbc.connect(
+        DRIVER='SQL Server Native Client 11.0',
+        SERVER=lims_server,
+        DATABASE=lims_db,
+        Trusted_Connection=lims_trusted,
+        ApplicationIntent=lims_intent
+    )
+
+    phl = pl.read_database(
+        query=query,
+        connection=conn_lims
+    )
+
+    return phl
+```
+:::
+:::{.editor .fragment .python name="transform.py"}
 ```{python}
 #| eval: false
 #| echo: true
@@ -1235,12 +1383,96 @@ def performing_lab() -> pl.Expr:
 ```
 :::
 
+:::{.editor .fragment .python name="match.py"}
+```{python}
+#| eval: false
+#| echo: true
+from wadoh_raccoon import dataframe_matcher as dfm
+
+def match_phl(pull_res,w_res):
+    """ Match PHL
+
+    Usage
+    -----
+    To be called after the pulls and wrangle functions.
+
+    Returns
+    -------
+    fuzzy_matched_review_df: pl.DataFrame
+        a Polars dataframe of records that successfully fuzzy matched with 90% + ratio, but will still be reviewed
+    fuzzy_without_demo_df: pl.DataFrame
+        a Polars dataframe of records that are missing demographics
+    fuzzy_matched_none: pl.DataFrame
+        a Polars dataframe of records that did not fuzzy match successfully
+    fuzzy_matched_roster: pl.DataFrame
+        a Polars dataframe of records that had a 1-1 perfect match
+    transformed_df: pl.DataFrame
+        a Polars dataframe of the original transformed records
+    submissions_to_fuzzy: pl.DataFrame
+        the original pre-transformation records
+    pull_res: class
+        class that contains all the original table pulls
+    w_res: class
+        class that contains all the results from the wrangle_phl() function
+
+    Examples
+    --------
+
+    ```python
+    from src.subtype_link import processor
+
+    main = processor.match_phl()
+    ```
+    
+    And you can pull any object like
+
+    ```python
+    main.fuzzy_matched_review_df
+    ```
+    
+    """
+    fuzzy_init = dfm.DataFrameMatcher(
+        df_src=w_res.submissions_to_fuzzy, # use temp_remove_col_date when gates of hell open
+        df_ref=pull_res.respnet,
+        first_name=('PatientFirstName', 'FIRST_NAME'),
+        last_name=('PatientLastName', 'LAST_NAME'),
+        dob=('PatientBirthDate','BIRTH_DATE'),
+        spec_col_date=('SpecimenDateCollected', 'SPECIMEN_COLLECTION_DTTM'),
+        key='submission_number',
+        threshold=80  # set what kind of fuzzy threshold you want, 100 being exact match
+    )
+
+    result=fuzzy_init.match()
+
+
+    fuzzy_matched_none = result.fuzzy_unmatched
+    fuzzy_matched_roster = result.exact_matched
+    fuzzy_without_demo_df = result.no_demo
+    fuzzy_matched_review_df = result.fuzzy_matched
+```
+:::
+
+:::{.editor .fragment .python name="load.py"}
+```{python}
+#| eval: false
+#| echo: true
+
+def write_data(pull_res):
+    (
+        final_roster
+        .write_csv(f"{net_drive}/subtype_roster_{date.today()}.csv")
+    )
+```
+:::
+
+::::
+
 ## wadoh_subtyping - easy to run
 
 ::::{.columns}
 :::{.column width="50%"}
-:::{.codewindow .terminal}
-```{sass}
+:::{.codewindow .terminal .codewindow-dark}
+```bash
 uv add wadoh_subtyping
 ```
 ::: 
@@ -1249,8 +1481,8 @@ uv add wadoh_subtyping
 <br>
 
 :::{.column width="50%"}
-:::{.codewindow .terminal}
-```{sass}
+:::{.codewindow .terminal bg="#fdf6e3" header-bg="#eee8d5" shadow-color="#93a1a1"}
+```bash
 uv run main.py
 ```
 :::
@@ -1258,32 +1490,113 @@ uv run main.py
 
 ::::
 
+## How to create a similar python project
+
+- [uv](https://docs.astral.sh/uv/) python package manager
+    -    what is [uv?](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
+    -    publish a [package with uv](https://www.youtube.com/watch?v=rM1SqONoPXs)
+- [polars](https://docs.pola.rs/user-guide/getting-started/) for working with dataframes (it's like dplyr with data.table speed + lazy + streaming)
+- [positron](https://positron.posit.co/)
+
+##
+
+![](images/uv_init.gif){fig-align="center"}
+
+## 
+
+![](images/uv_add.gif){fig-align="center"}
+
+## uv - src 
+
+![](images/src.png){fig-align="center"}
+
+## uv - main.py 
+
+![](images/main.png){fig-align="center" width="70%"}
+
+## uv run main.py
+
+![](images/run_main.png){fig-align="center" width="70%"}
 
 
-## Code Standards Summary {{< iconify line-md:document-code-twotone style="color:#48BDF3;">}}
+## polars 
 
-- Main package
-- Project specific packages
-- GitHub
-    -  File structure
-    -  Function structure
-    -  Tests
-    -  GitHub Release & Changelog
-    -  GitHub Pages
+::::{.columns}
 
-## baby steps {{< iconify line-md:github-twotone style="color:#48BDF3;">}}
+:::{.column width="50%"}
+:::{.codewindow .r .active name="dplyr" .codewindow-dark}
+```{r}
+#| echo: true 
+#| eval: false
+library(dplyr)
+df |>
+  filter(sepal_length > 5) |>
+  mutate(petal_ratio = petal_length / sepal_length) |>
+  group_by(species) |>
+  summarise(
+    mean_ratio = mean(petal_ratio),
+    n = n()
+  )
 
-Start small
+```
+:::
+:::
 
-- Make functions
-- Make a package
-- Push the code to GitHub
 
-If you want more
+:::{.column width="50%"}
+:::{.codewindow .codewindow-dark}
+:::{.python name="polars" .editor .fragment}
+```{r}
+#| echo: true 
+#| eval: false
+import polars as pl
+result = (
+    df
+    .filter(pl.col("sepal_length") > 5)
+    .with_columns(
+        (pl.col("petal_length") / pl.col("sepal_length"))
+        .alias("petal_ratio")
+    )
+    .group_by("species")
+    .agg(
+        pl.col("petal_ratio").mean().alias("mean_ratio"),
+        pl.len().alias("n")
+    )
+)
 
-- Make a release cycle 
-- Write better documentation
-- Copy our GitHub Action yaml
+
+```
+:::
+
+:::{.python .editor name="pandas" .fragment bg="#fdf6e3" header-bg="#eee8d5" shadow-color="#93a1a1"}
+```{r}
+#| echo: true 
+#| eval: false
+import pandas as pl
+result = (
+    df[df["sepal_length"] > 5]
+    .assign(
+        petal_ratio=lambda x:
+            x["petal_length"] / x["sepal_length"]
+    )
+    .groupby("species")
+    .agg(
+        mean_ratio=("petal_ratio", "mean"),
+        n=("petal_ratio", "size")
+    )
+    .reset_index()
+)
+
+
+```
+:::
+
+:::
+
+:::
+
+::::
+
 
 ## Links
 
@@ -1294,12 +1607,6 @@ If you want more
     -    what is [uv?](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
     -    publish a [package with uv](https://www.youtube.com/watch?v=rM1SqONoPXs)
 
-:::{.codewindow .terminal}
-```{sass}
-uv init --package my_package
-```
-
-:::
 
 
 
