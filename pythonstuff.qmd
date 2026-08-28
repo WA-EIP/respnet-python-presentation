@@ -18,7 +18,7 @@ execute:
 
 ## FluSurv-NET subtype data linkage {.center}
 
-_Python, packages, github, and modular codebases_
+_Python, packages, and modular codebases_
 
 <!-- _Using respnet data linkage as an example_ -->
 
@@ -1487,7 +1487,7 @@ uv add wadoh_subtyping
 <br>
 
 :::{.column width="50%"}
-:::{.codewindow .terminal bg="#fdf6e3" header-bg="#eee8d5" shadow-color="#93a1a1"}
+:::{.codewindow .terminal bg="#fff7fa" header-bg="#efd6e3" shadow-color="#b76e8a"}
 ```bash
 uv run main.py
 ```
@@ -1498,11 +1498,128 @@ uv run main.py
 
 ## How to create a similar python project
 
-- [uv](https://docs.astral.sh/uv/) python package manager
-    -    what is [uv?](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
-    -    publish a [package with uv](https://www.youtube.com/watch?v=rM1SqONoPXs)
-- [polars](https://docs.pola.rs/user-guide/getting-started/) for working with dataframes (it's like dplyr with data.table speed + lazy + streaming)
-- [positron](https://positron.posit.co/)
+::::{.columns}
+:::{.column width="40%"}
+:::{.codewindow .terminal .codewindow-dark name="00-create-package"}
+```bash
+uv init --package pkg
+```
+::: 
+
+
+:::{.codewindow .terminal .codewindow-dark name="01-install-packages"}
+```bash
+uv add polars pyodbc redcap
+```
+:::
+
+:::{.codewindow .terminal name="03-run-code" bg="#fff7fa" header-bg="#efd6e3" shadow-color="#b76e8a"}
+```bash
+uv run main.py
+```
+::: 
+
+:::
+
+:::{.column width="60%"}
+::::{.codewindow .codewindow-dark}
+:::{.editor .fragment .python name="src/pkg/extract.py"}
+```{python}
+#| eval: false
+#| echo: true
+import polars as pl
+
+def pull_data():
+
+    df = pl.DataFrame({
+        "SpecimenSource": [
+            "Resipiratory: nasal swab",
+            "Nasopharyngeal Swab (NP)",
+            "Conjunctival Swab"
+        ]
+    })
+    return df
+```
+:::
+
+:::{.editor .fragment .python name="src/pkg/transform.py"}
+```{python}
+#| eval: false
+#| echo: true
+import polars as pl
+
+def wdrs_specimen_source(wdrs_spec_source_col: str):
+
+        wdrs_spec_source_map = {
+            # Nasal Swabs >>> Nose
+            'Nasal Swabs': 'G_NOSE',
+            'Respiratory: nasal wash': 'G_NOSE',
+            'Respiratory: nasal swab': 'G_NOSE',
+
+            # Nasopharyngeal Swab (NP)
+            'Nasopharyngeal Swab (NP)': 'G_NP_SWAB', 
+            'Respiratory: NP swab': 'G_NP_SWAB',
+            
+            # Oropharyngeal Swab
+            'Oropharyngeal Swab': 'G_OROPHARYNX',
+            
+            # Conjunctival Swab Eye or S_OCULAR?
+            'Conjunctival Swab': 'G_EYE',
+            'Conjunctival swab': 'G_EYE',
+            
+            # Sputum
+            'Sputum': 'G_SPUTUM'
+        }
+
+        return(
+            pl.col(wdrs_spec_source_col).replace_strict(wdrs_spec_source_map,default=None)
+        )
+
+def run_all_transformations(df,wdrs_spec_source_col='SpecimenSource'):
+    final = (
+        df
+        .with_columns(
+            WDRS_SPECIMEN_SOURCE=wdrs_specimen_source(
+                wdrs_spec_source_col='SpecimenSource'
+            )
+        )
+    )
+    return final
+```
+:::
+
+:::{.editor .fragment .python name="main.py"}
+```{python}
+#| eval: false
+#| echo: true
+from pkg import extract, transform as tf
+
+def main():
+
+    # Pull Data
+    df = extract.pull_data()
+
+    # Transform Data
+    final = tf.run_all_transformations(df,wdrs_spec_source_col='SpecimenSource')
+
+    # Print the output
+    print(final)
+
+# boilerplate, run the script inside the main.py file
+if __name__ == "__main__":
+    main()
+```
+:::
+
+
+
+
+::::
+
+
+:::
+
+::::
 
 ##
 
@@ -1514,7 +1631,7 @@ uv run main.py
 
 ## uv - src 
 
-![](images/src.png){fig-align="center"}
+![](images/src2.png){fig-align="center"}
 
 ## uv - main.py 
 
@@ -1523,6 +1640,10 @@ uv run main.py
 ## uv run main.py
 
 ![](images/run_main.png){fig-align="center" width="70%"}
+
+## Why positron?
+
+![](images/positron.gif)
 
 
 ## polars 
@@ -1612,6 +1733,8 @@ result = (
 - [uv](https://docs.astral.sh/uv/) python package manager
     -    what is [uv?](https://www.youtube.com/watch?v=zgSQr0d5EVg&t=38s)
     -    publish a [package with uv](https://www.youtube.com/watch?v=rM1SqONoPXs)
+- [polars](https://docs.pola.rs/)
+- [positron](https://positron.posit.co/)
 
 
 
