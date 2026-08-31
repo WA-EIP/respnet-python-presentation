@@ -619,9 +619,9 @@ base = {
 
   // Dependent projects
   const projects = [
-    { name: "project1", color: colors[1] },
-    { name: "project2", color: colors[2] },
-    { name: "project3", color: colors[3] }
+    { name: "subtyping", color: colors[1] },
+    { name: "covid", color: colors[2] },
+    { name: "enteric", color: colors[3] }
   ];
 
 
@@ -1476,22 +1476,27 @@ def write_data(pull_res):
 ## wadoh_subtyping - easy to run
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="40%"}
 :::{.codewindow .terminal .codewindow-dark}
 ```bash
 uv add wadoh_subtyping
 ```
 ::: 
-:::
+
 
 <br>
 
-:::{.column width="50%"}
-:::{.codewindow .terminal bg="#fff7fa" header-bg="#efd6e3" shadow-color="#b76e8a"}
+:::{.codewindow .terminal bg="#FFEFDB" header-bg="#E8CDB5" shadow-color="#9B705E"}
 ```bash
 uv run main.py
 ```
 :::
+:::
+
+:::{.column width="60%"}
+
+![](images/respnet_chart_nobg.svg){width="50%" fig-align="center"}
+
 :::
 
 ::::
@@ -1513,7 +1518,7 @@ uv add polars pyodbc redcap
 ```
 :::
 
-:::{.codewindow .terminal name="03-run-code" bg="#fff7fa" header-bg="#efd6e3" shadow-color="#b76e8a"}
+:::{.codewindow .terminal name="02-run-code" bg="#fff7fa" header-bg="#efd6e3" shadow-color="#b76e8a"}
 ```bash
 uv run main.py
 ```
