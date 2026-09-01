@@ -7,6 +7,7 @@ format:
         chalkboard: true
 revealjs-plugins:
   - codewindow
+  - excalidraw
 filters:
   - diagrams
 knitr: false
@@ -383,7 +384,11 @@ def main(write_data=False):
     res = matching.match_phl(pull_res,w_res)
 
     # combined rosters from rematch, regular, and manually reviewed
-    final_roster = wrangle.combine_the_rosters(rematch,res, reviewed_roster)
+    final_roster = wrangle.combine_the_rosters(rematch, res, reviewed_roster)
+  
+  # boilerplate, run the script inside the main.py file
+if __name__ == "__main__":
+    main()
 ```
 :::
 :::
@@ -874,11 +879,11 @@ one = {
 
   // simulated fuzzy join result
   const j = aq.table({
-    name1: ['jade', 'subzero'],
+    name1: ['jade', 'subzero', 'scorpion'],
     // y: [1, 2, 3],
-    name2: ['jade', 'subbbzero'],
+    name2: ['jade', 'subbbzero', 'rain'],
     // v: [4, 5, null],
-    score: [1.0, 0.89]
+    score: [1.0, 0.89, 0.15]
   });
 
   const [cl, cr] = categories;
@@ -1307,8 +1312,7 @@ main.py
 ```{python}
 #| eval: false
 #| echo: true
-from wadoh_subtyping import extract, load, matching, wrangle, rematch_funcs
-from wadoh_subtyping import helpers
+from wadoh_subtyping import extract, load, matching, wrangle, helpers
 
 def main(write_data=False):
 
@@ -1322,7 +1326,7 @@ def main(write_data=False):
     res = matching.match_phl(pull_res,w_res)
 
     # combined rosters from rematch, regular, and manually reviewed
-    final_roster = wrangle.combine_the_rosters(rematch,res, reviewed_roster)
+    final_roster = wrangle.combine_the_rosters(rematch, res, reviewed_roster)
 ```
 :::
 
@@ -1477,7 +1481,7 @@ def write_data(pull_res):
 
 ::::{.columns}
 :::{.column width="40%"}
-:::{.codewindow .terminal .codewindow-dark}
+:::{.codewindow .terminal .codewindow-dark name="install"}
 ```bash
 uv add wadoh_subtyping
 ```
@@ -1486,7 +1490,7 @@ uv add wadoh_subtyping
 
 <br>
 
-:::{.codewindow .terminal bg="#FFEFDB" header-bg="#E8CDB5" shadow-color="#9B705E"}
+:::{.codewindow .terminal name="run.sh" bg="#FFEFDB" header-bg="#E8CDB5" shadow-color="#9B705E"}
 ```bash
 uv run main.py
 ```
@@ -1514,7 +1518,7 @@ uv init --package pkg
 
 :::{.codewindow .terminal .codewindow-dark name="01-install-packages"}
 ```bash
-uv add polars pyodbc redcap
+uv add polars pyodbc redcap wadoh_raccoon
 ```
 :::
 
@@ -1661,7 +1665,8 @@ if __name__ == "__main__":
 #| echo: true 
 #| eval: false
 library(dplyr)
-df |>
+
+result <- df |>
   filter(sepal_length > 5) |>
   mutate(petal_ratio = petal_length / sepal_length) |>
   group_by(species) |>
@@ -1682,6 +1687,7 @@ df |>
 #| echo: true 
 #| eval: false
 import polars as pl
+
 result = (
     df
     .filter(pl.col("sepal_length") > 5)
@@ -1704,9 +1710,11 @@ result = (
 ```{r}
 #| echo: true 
 #| eval: false
-import pandas as pl
+import pandas as pd
+
 result = (
-    df[df["sepal_length"] > 5]
+    df
+    .query("sepal_length > 5")
     .assign(
         petal_ratio=lambda x:
             x["petal_length"] / x["sepal_length"]
@@ -1720,6 +1728,59 @@ result = (
 )
 
 
+```
+:::
+
+:::{.python .editor name="duckdb" .fragment}
+```{r}
+#| echo: true 
+#| eval: false
+import duckdb
+
+result = duckdb.sql("""
+    SELECT
+        species,
+        AVG(petal_length / sepal_length) AS mean_ratio,
+        COUNT(*) AS n
+    FROM df
+    WHERE sepal_length > 5
+    GROUP BY species
+""")
+
+pd_df = result.df() # create pandas df
+pl_df = result.pl() # create polars df
+
+
+```
+:::
+
+:::{.python .editor name="narwhals" .fragment}
+```{r}
+#| echo: true 
+#| eval: false
+import narwhals as nw
+
+def summarize_iris(df, output="polars"):
+    result = (
+        nw.from_native(df)
+        .filter(nw.col("sepal_length") > 5)
+        .with_columns(
+            (nw.col("petal_length") / nw.col("sepal_length"))
+            .alias("petal_ratio")
+        )
+        .group_by("species")
+        .agg(
+            nw.col("petal_ratio").mean().alias("mean_ratio"),
+            nw.len().alias("n"),
+        )
+    )
+
+    if output == "polars":
+        return result.to_polars()
+    elif output == "pandas":
+        return result.to_pandas()
+    else:
+        raise ValueError("output must be 'polars' or 'pandas'")
 ```
 :::
 

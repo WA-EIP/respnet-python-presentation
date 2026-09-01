@@ -1,0 +1,1185 @@
+```{python}
+#| echo: true
+#| eval: false
+import pickle
+import os
+import pyodbc
+import pandas as pd
+import re
+import glob
+import time
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
+import random
+import json
+import subprocess
+from fuzzywuzzy import fuzz
+import itertools
+
+
+
+# grab process start time and today's date
+user = os.getlogin()
+time_start = datetime.now()
+today = date.today()
+
+### Read in necessary data tables from WDRS ###
+# Positive Tests Table for matching template and PHL submissions, return all reported positive covid tests
+# ELR submissions table to capture new sequencing results via ELR, only those wihin last three days
+# Sequencing Table (for preventing duplication)
+
+py_creds = pickle.load(open(f'C:/Users/{user}/Projects/Sequencing/Data_Objects/py_creds.p', "rb" ) )
+
+conn = pyodbc.connect(DRIVER=py_creds['conn_list'][0],
+                      SERVER= py_creds['conn_list'][1],
+                      DATABASE=py_creds['conn_list'][2],
+                      Trusted_Connection=py_creds['conn_list'][3],
+                      ApplicationIntent=py_creds['conn_list'][4]
+                      )
+
+print('\n')
+print(f'Reading in ELR Entire Tables')
+print('\n')
+
+query_start = time.time()
+
+# ELR Entire Table Query for All Positive Covid results
+postive_tests_query = """
+                    SELECT 
+                        DISTINCT (CASE_ID), 
+                        PATIENT__DATE__OF__BIRTH as PATIENT_DOB, 
+                        FIRST_NAME as FIRST_NAME, 
+                        LAST_NAME as LAST_NAME, 
+                        FILLER__ORDER__NUM, 
+                        CAST(SPECIMEN__COLLECTION__DTTM as datetime) SPECIMEN__COLLECTION__DTTM
+                    FROM [dbo].[DD_ELR_DD_ENTIRE] 
+                    WHERE CODE = 'SARS' 
+                    AND STATUS != '6' 
+                    AND WDRS__RESULT__SUMMARY != 'NEGATIVE'
+                    AND FILLER__ORDER__NUM NOT LIKE '%*Unknown%'
+                    AND FILLER__ORDER__NUM NOT LIKE '%None%'
+                    AND FILLER__ORDER__NUM IS NOT NULL
+                    AND PATIENT__DATE__OF__BIRTH < (GETDATE())
+                    AND SPECIMEN__COLLECTION__DTTM IS NOT NULL
+                    AND SPECIMEN__COLLECTION__DTTM NOT LIKE '%NaT%'
+                    AND PATIENT__DATE__OF__BIRTH > '1903-12-31'
+                    """
+
+positive_tests_df = pd.read_sql(postive_tests_query, conn)
+
+# ELR entire table query for new sequencing resutls by ELR
+
+weekday = datetime.today().weekday()
+
+if weekday == 0:
+    elr_query_date = 6
+else:
+    elr_query_date = 2
+
+elr_submissions_query = f"""
+            SELECT
+	            DISTINCT(CASE_ID),
+	            CREATE_DATE, 
+	            CODE, 
+	            STATUS,
+	            SUBMITTER,
+                CAST(INVESTIGATION_CREATE_DATE as datetime) INVESTIGATION_CREATE_DATE,
+	            CAST(WELRS__PROCESSED__DTTM as datetime) WELRS_PROCESSED_DTTM,
+	            PATIENT__CENTRIC__OBSERVATION__VALUE,
+              PATIENT__CENTRIC__OBSERVATION__NOTE,
+	            SPECIMEN__COLLECTION__DTTM, 
+	            FILLER__ORDER__NUM,
+	            WDRS__TEST__PERFORMED,
+	            TEST__RESULT,
+	            TEST__RESULT__NOTE,
+              TEST__REQUEST__NOTE
+            FROM DD_ELR_DD_ENTIRE
+            WHERE INVESTIGATION_CREATE_DATE > (GETDATE() - {elr_query_date})
+            AND CODE = 'SARS'
+            AND WDRS__TEST__PERFORMED = 'SARS CoV-2 Sequencing';    
+        """
+
+elr_submissions_df = pd.read_sql(elr_submissions_query, conn)
+
+query_end = time.time()
+
+elapsed_time = query_end - query_start
+
+print(f'ELR Entire Table Query Time: {str(int(elapsed_time))} seconds')
+print('\n')
+
+print(f'Reading in Sequencing Table')
+
+# read in sequencing table to be used for filtering already existing results
+seq_table_query = f"""
+SELECT * FROM DD_GCD_COVID19_SEQUENCING
+WHERE SEQUENCE_SPECIMEN = 'Yes'
+AND CASE_STATUS != 6;
+"""
+seq_df = pd.read_sql(seq_table_query, conn)
+
+conn.close() # close pyodbc connection
+
+# read in lineages data_object and append with 'UNASSIGNED'
+lineages = pd.read_csv('//Lineages/Lineages.csv')
+lineages = lineages['lineage_extracted'].tolist()
+
+# read in wa_gisaid_data
+wa_gisaid = pd.read_csv('//wa_gisaid_data.tsv', sep= '\t', low_memory=False)
+
+### START FIRST BLOCK ###
+submissions_path = f'//Submissions/' # define inbound file path
+output_path = f'//ssions' # define path for output csv
+
+## for production ## (once 2.0 is in production this block will replace that above)
+# submissions_path = f'///Sequencing_2.0/' # define path for output csv
+
+directory_list = [
+ 'ADHOC',
+ 'AEGIS',
+ 'ALTIUS',
+ 'ASU',
+ # 'CURATIVE',
+ 'INFINITY_BIOLOGIX',
+ 'JACKSONLAB',
+ 'KAISER',
+ 'MADIGANARMYMEDICALCENTER',
+ 'NW_GENOMICS',
+ 'OHSU',
+ 'PHL_2',
+ 'PROVIDENCE_SWEDISH',
+ 'UNITEDSTATESAIRFORCESCHOOLOFAEROSPACE',
+ 'UW_VIROLOGY',
+ 'BOISE_VA',
+ 'GRAVITY DIAGNOSTICS',
+ 'LAURING_LAB']
+
+submitter_list = [] 
+submission_numbers = [] 
+file_path_list = []
+row_create_dates = []
+jsonified_rows = []
+processed_file_paths = []
+
+print('\n')
+
+# jsonify for csv files in submissions folder
+for directory in directory_list:
+
+    try:
+        os.chdir(submissions_path + directory)
+
+        print(f'Processing Files from: {directory}')
+
+        time.sleep(2)
+
+        submissions_file_list = []
+
+        for file in (glob.glob('*.csv') + glob.glob('*.xlsx')):
+
+            submissions_file_list.append(file)
+
+        for file in submissions_file_list:
+
+            try:
+
+                if file.endswith('.csv'):
+                    df = pd.read_csv(file)
+
+                elif file.endswith('.xlsx'):
+                    df = pd.read_excel(file, engine='openpyxl')
+
+                processed_file_paths.append(directory + '/' + file)
+
+            except:
+                print(f'error in {directory + file} please review.')
+    
+            for index, row in df.iterrows():
+
+                submitter = directory
+                submitter_list.append(submitter)
+
+                random.seed()
+                submission_number = int(round(random.random() * 10e8, 8))
+                submission_numbers.append(submission_number)
+
+                file_path_list.append(file)
+
+                create_date = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                row_create_dates.append(create_date)
+    
+                row_json = row.to_json()
+                jsonified_rows.append(row_json)
+        
+    except:
+        print(f'error ocurred with folder: {directory}')
+
+print('\n')
+print(f'There are {len(submission_numbers)} submissions from the Y:/ drive')
+print('\n')
+
+# jsonify for ELR submissions
+elr_submitters = elr_submissions_df['SUBMITTER'].unique()
+
+j = 0
+
+for submitter in elr_submitters:
+    
+    df = elr_submissions_df[elr_submissions_df['SUBMITTER'] == submitter]
+    
+    for index, row in df.iterrows():
+    
+        submitter_list.append(submitter)
+        
+        random.seed()
+    
+        submission_number = int(round(random.random() * 10e8, 8))
+        submission_numbers.append(submission_number)
+    
+        file_path_list.append('ELR Submission')
+    
+        create_date = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+    
+        row_create_dates.append(create_date)
+    
+        row_json = row.to_json()
+    
+        jsonified_rows.append(row_json)
+
+        j += 1
+
+print(f'There are {j} ELR submissions from {today - timedelta(days=(elr_query_date - 1))}')
+print('\n')
+
+df_to_process = pd.DataFrame({
+                     'submission_number': submission_numbers, 
+                     'submitter': submitter_list,
+                     'file_path': file_path_list,
+                     'row_create_datetime': row_create_dates,
+                     'raw_inbound_submission': jsonified_rows})
+
+df_to_process.to_csv(f'{output_path}/daily_submissions_archive/{today}_received_submissions.csv', index=False)
+
+### END FIRST BLOCK ###
+
+### START BLOCK 2 ###
+
+# initiating empty lists for roster output
+submission_numbers = []
+case_ids = []
+sequence_sgtfs = []
+sequence_specimens = []
+sequence_dates = []
+sequence_reasons = []
+sequence_labs = []
+submitting_labs = []
+sequence_statuses = []
+sequence_repositorys = []
+sequence_accessions = []
+sequence_epi_isls = []
+sequence_variant_open_texts = []
+sequence_clinical_accessions = []
+sequence_specimen_collection_dates = []
+sequence_roster_prepare_dates = []
+sequence_notes = []
+sequence_reviewed = []
+case_notes = []
+
+# list for no match founds
+no_match_found = []
+
+submitter_list = df_to_process['submitter'].unique()
+print(f'Todays submitters are: {submitter_list}')
+print('\n')
+
+def fuzzy_dedup(df):
+    # if there multiple matches create name pair matches, fuzzy match all name pairs and assign a ratio
+    for g in range(0, len(df)):
+        # bind the uppercase FIRST_NAME + LAST NAME into names_dict
+        names_dict[g] = str(df['FIRST_NAME'].iloc[g]).upper() + str(df['LAST_NAME'].iloc[g]).upper()
+    # create a 1:1 combination pair of each name
+    combinations = itertools.combinations(list(names_dict.values()), 2)
+    # bind these name combos into a df
+    names_df = pd.DataFrame(list(combinations))
+    # create new col containing the fuzz ratio between each name pair
+    names_df['ratio'] = names_df.apply(lambda x: fuzz.ratio(x[0], x[1]), axis=1)
+    # if there multiple matches & the time difference between max and min PATIENT_DOB is less than 365 days & FIRST_NAME and LAST_NAME is not na
+    if ((df['PATIENT_DOB'].max() - df['PATIENT_DOB'].min()).days < 365) & ~pd.isna(df['FIRST_NAME']).any() & ~pd.isna(df['LAST_NAME']).any():
+        if names_df.ratio.mean() >= 70:
+            print(f'Matched {submission_number} with a name ratio value of: {names_df.ratio.mean()}')
+            return df['CASE_ID'][abs(df['SPECIMEN__COLLECTION__DTTM'] - datetime.strptime(specimen_collection_date, "%m/%d/%Y")).idxmin()]
+        # if the avg ratio of all name pairs is less than .70
+        elif names_df.ratio.mean() < 70:
+            print(f'Cant match submission {submission_number} had a name ratio below 70. Value: {names_df.ratio.mean()}')
+            return ''
+    # else if there are multiple matches & the time difference between max - min PATIENT_DOB is greater than 365 days or FIRST_NAME or LAST_NAME is na: return ''
+    elif ((df['PATIENT_DOB'].max() - df['PATIENT_DOB'].min()).days > 365) | pd.isna(df['FIRST_NAME']).any() | pd.isna(df['LAST_NAME']).any():
+        print(f'Cant match submission {submission_number}, PATIENT_DOB is too far off between records or there is a record a missing FIRST_NAME or LAST_NAME')
+        return ''
+    # Empty dictionary to hold names
+    names_dict = dict()
+    # Empty df to hold names
+    names_df = pd.DataFrame()
+
+def acc_id_match(acc_id):
+    positive_df = positive_tests_df[positive_tests_df['FILLER__ORDER__NUM'] == acc_id]
+    positive_df = positive_df.reset_index()
+    if len(positive_df) == 1:
+        return positive_df['CASE_ID'][0]
+    elif len(positive_df) > 1:
+        fuzzy_dedup(positive_df)
+    elif len(positive_df) == 0:
+        return ''
+
+def numb_sub(submitter):
+    df = df_to_process[df_to_process['submitter'] == submitter]
+    df = df.reset_index()
+    num_of_sub = len(df['submission_number'])
+    print(f'There are {num_of_sub} submissions from {submitter}')
+    print('\n')
+
+# Parse multiple date format or return an error
+def parse_date(date):
+    if pd.isnull(date) == True:
+        return 'UNDEFINED'
+    else:
+        for fmt in ['%m/%d/%Y', '%m/%d/%y', '%m-%d-%Y', '%m-%d-%y', '%Y/%m/%d', '%Y-%m-%d', '%Y%m%d']:
+            try:
+                return datetime.strptime(date, fmt)
+            except:
+                pass
+        raise ValueError('no valid date format found')
+
+# combine values from two variables into a string and extract any valid lineages
+def elr_lineage_extract(lineage_col_1, lineage_col_2):
+    str_comb = ''
+    str_comb = (' ' + (None if lineage_col_1 is None else lineage_col_1) + ' ')
+    str_comb = str_comb + ' ' + (None if lineage_col_2 is None else lineage_col_2) + ' '
+    lineage_matches = []
+    for l in lineages:
+        if f' {l} ' in str_comb:
+            lineage_matches.append(l)
+    if len(lineage_matches) == 1:
+        return lineage_matches[0]
+    elif len(lineage_matches) > 1:
+        return 'UNDEFINED'
+    else:
+        return None
+
+# conditional loops to process submissions specific to submitter
+# list of template submitters
+template_list = [
+ 'ADHOC',
+ 'AEGIS',
+ 'ALTIUS',
+ 'ASU',
+ # 'CURATIVE',
+ 'INFINITY_BIOLOGIX',
+ 'JACKSONLAB',
+ 'KAISER',
+ 'MADIGANARMYMEDICALCENTER',
+ 'NW_GENOMICS',
+ 'OHSU',
+ 'PROVIDENCE_SWEDISH',
+ 'UNITEDSTATESAIRFORCESCHOOLOFAEROSPACE',
+ 'UW_VIROLOGY',
+ 'BOISE_VA',
+ 'GRAVITY DIAGNOSTICS',
+ 'LAURING_LAB']
+
+for submitter in submitter_list:
+
+    ### BLOCK FOR PHL SUBMISSIONS ##
+    if submitter.upper() == 'PHL_2':
+
+        numb_sub(submitter)
+
+        df = df_to_process[df_to_process['submitter'] == submitter]
+        df = df.reset_index()
+
+        i = 0
+
+        while i < len(df['submission_number']):
+
+            submission_number = df['submission_number'][i]
+            submission_numbers.append(submission_number)
+
+            raw_inbound_submission = json.loads(df['raw_inbound_submission'][i])
+            submitting_lab = raw_inbound_submission['SubmittingLab']
+
+            phl_specimen_id = raw_inbound_submission['SpecimenId']
+            alternate_accession_id = raw_inbound_submission['AccessionId']
+
+            try:
+                specimen_collection_date = parse_date(raw_inbound_submission['SPECIMEN_COLLECTION_DATE']).strftime('%m/%d/%Y')
+                sequence_specimen_collection_dates.append(specimen_collection_date)
+            except:
+                sequence_specimen_collection_dates.append(None)
+
+            ## matching first on alternate accession id, if no match try to match on phl specimen id, otherwise pass to fuzzy later on
+            try:
+                case_id_phl_specimen_id = acc_id_match(phl_specimen_id)
+                case_id_alternate_accession_id = acc_id_match(alternate_accession_id)
+
+                if case_id_phl_specimen_id != '' and case_id_alternate_accession_id == '':
+                    case_ids.append(case_id_phl_specimen_id)
+                    sequence_clinical_accessions.append(phl_specimen_id)
+                elif case_id_phl_specimen_id == '' and case_id_alternate_accession_id != '':
+                    case_ids.append(case_id_alternate_accession_id)
+                    sequence_clinical_accessions.append(alternate_accession_id)
+                elif case_id_phl_specimen_id == '' and case_id_alternate_accession_id == '':
+                    case_ids.append('')
+                    sequence_clinical_accessions.append('')
+                elif case_id_phl_specimen_id != '' and case_id_alternate_accession_id != '':
+                    case_ids.append('')
+                    sequence_clinical_accessions.append('')
+                    print(f'Warning: PHL submission {submission_number} matched to an event based on both the phl_specimen_id and the alternate_accession_id, review for validity')
+            except:
+                no_match_found.append(submission_number)
+                case_ids.append('')
+                sequence_clinical_accessions.append('')
+
+            sequence_sgtfs.append(None)
+            sequence_specimens.append("YES")
+            sequence_dates.append(None)
+
+            # try to process sequence_reason from 'Reason' variable of raw_inbound_submission
+            try:
+                # if Reason is missing; default value to None
+                if pd.isnull(raw_inbound_submission['Reason']) == True:
+                    sequence_reason = None
+                # if Reason (cleaned) is 'PHL DIAGNOSTIC' or 'PT'; default to value to 'SENTINEL SURVEILLANCE'
+                elif raw_inbound_submission['Reason'].strip().upper() in ['PHL DIAGNOSTIC', 'PT']:
+                    sequence_reason = 'SENTINEL SURVEILLANCE'
+                # if Reason (cleaned) is 'TRAVEL'; default to value to 'SENTINEL SURVEILLANCE'
+                elif raw_inbound_submission['Reason'].strip().upper() == 'TRAVEL':
+                    sequence_reason = 'TRAVEL ASSOCIATED'
+                # if Reason (cleaned) is 'OUTBREAK INVESTIGATION'; default to value to 'OUTBREAK'
+                elif raw_inbound_submission['Reason'].strip().upper() == 'OUTBREAK INVESTIGATION':
+                    sequence_reason = 'OUTBREAK'
+                # if Reason (cleaned) is 'SENTINEL SURVEILLANCE', 'SUSPECTED REINFECTION', 'SUSPECTED VACCINE BREAKTHROUGH', 'TRAVEL ASSOCIATED', 'OUTBREAK', 'S-DROPOUT' or 'OTHER'; fill with cleaned value
+                elif raw_inbound_submission['Reason'].strip().upper() in ['SENTINEL SURVEILLANCE', 'SUSPECTED REINFECTION', 'SUSPECTED VACCINE BREAKTHROUGH', 'TRAVEL ASSOCIATED', 'OUTBREAK', 'S-DROPOUT', 'OTHER']:
+                    sequence_reason = raw_inbound_submission['Reason'].strip().upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_reason = 'UNDEFINED'
+                # append value to sequence_reason
+                sequence_reasons.append(sequence_reason)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_reasons.append('UNDEFINED')
+
+            try:
+                submitting_labs.append(raw_inbound_submission['SubmittingLab'].strip())
+                sequence_labs.append('PHL')
+            except:
+                submitting_labs.append('PHL')
+                sequence_labs.append('PHL')
+
+            # try to process sequence_status from 'Sequencing Result' variable of raw_inbound_submission
+            try:
+                # if Sequencing Result is missing; default value to None
+                if pd.isnull(raw_inbound_submission['Sequencing Result']) == True:
+                    sequence_status = None
+                # if Sequencing Result (cleaned) is 'FAILED' and Lineage (cleaned) is 'UNASSIGNED'; default value to 'COMPLETE'
+                elif (raw_inbound_submission['Sequencing Result'].strip().upper() == 'FAILED') and (pd.isnull(raw_inbound_submission['Lineage']) == False) and (raw_inbound_submission['Lineage'].strip().upper() == 'UNASSIGNED'):
+                    sequence_status = 'COMPLETE'
+                # if Sequencing Result (cleaned) is 'COMPLETE' or 'FAILED'; fill with cleaned value
+                elif raw_inbound_submission['Sequencing Result'].strip().upper() in ['COMPLETE', 'FAILED']:
+                    sequence_status = raw_inbound_submission['Sequencing Result'].strip().upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_status = 'UNDEFINED'
+                # append value to sequence_status
+                sequence_statuses.append(sequence_status)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_statuses.append('TEST')
+
+            sequence_repositorys.append("GISAID")
+
+            sequence_accessions.append(raw_inbound_submission['Seq ID'])
+
+            sequence_epi_isls.append(None)
+
+            # try to process sequence_variant_open_text from 'Lineage' variable of raw_inbound_submission
+            try:
+                # if PANGO_LINEAGE is missing; default value to None
+                if pd.isnull(raw_inbound_submission['Lineage']) == True:
+                    sequence_variant_open_text = None
+                # if PANGO_LINEAGE (cleaned) is 'UNASSIGNED'; default value to 'Unassigned'
+                elif raw_inbound_submission['Lineage'].strip().upper() == 'UNASSIGNED':
+                    sequence_variant_open_text = 'Unassigned'
+                # if PANGO_LINEAGE (cleaned) is a valid lineage; fill with cleaned value
+                elif raw_inbound_submission['Lineage'].strip().upper() in lineages:
+                    sequence_variant_open_text = raw_inbound_submission['Lineage'].strip().upper()
+                # if PANGO_LINEAGE after being split on whitespace and the first return is a valid lineage; fill with cleaned value
+                elif raw_inbound_submission['Lineage'].split(' ')[0].upper() in lineages:
+                    sequence_variant_open_text = raw_inbound_submission['Lineage'].split(' ')[0].upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_variant_open_text = "UNDEFINED"
+                # append value to sequence_variant_open_texts
+                sequence_variant_open_texts.append(sequence_variant_open_text)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_variant_open_texts.append('UNDEFINED')
+
+            sequence_roster_prepare_dates.append(today.strftime('%m/%d/%Y'))
+
+            if sequence_variant_open_text == "Unassigned" or sequence_variant_open_text is None:
+                sequence_note = None
+            else:
+                sequence_note = f'Lineage identified as {sequence_variant_open_text} on {today}. Lineage assignments may change over time.'
+            sequence_notes.append(sequence_note)
+
+            sequence_reviewed.append(None)
+            case_notes.append('External data question package updated by COVID19 Sequencing Roster.')
+
+            i += 1
+
+    ### BLOCK FOR TEMPLATE SUBMISSIONS ###
+    elif submitter.upper() in template_list:
+
+        numb_sub(submitter)
+
+        df = df_to_process[df_to_process['submitter'] == submitter]
+        df = df.reset_index()
+
+        i = 0
+
+        while i < len(df['submission_number']):
+
+            submission_number = df['submission_number'][i]
+            submission_numbers.append(submission_number)
+
+            raw_inbound_submission = json.loads(df['raw_inbound_submission'][i])
+
+            try:
+                lab_accession_id = str(raw_inbound_submission['LAB_ACCESSION_ID']) # mutate lab accession id here if needed
+            except KeyError:
+                lab_accession_id = ''
+
+            # pull sequence specimen collection date
+            try:
+                specimen_collection_date = parse_date(raw_inbound_submission['SPECIMEN_COLLECTION_DATE']).strftime('%m/%d/%Y')
+                sequence_specimen_collection_dates.append(specimen_collection_date)
+            except:
+                sequence_specimen_collection_dates.append(None)
+
+            # try to match to positive tests by lab accession id; if no match write submission number to list
+            try:
+                case_id = acc_id_match(lab_accession_id)
+                case_ids.append(case_id)
+            except:
+                no_match_found.append(submission_number)
+                case_ids.append("")
+
+            sequence_sgtfs.append(None)
+            sequence_specimens.append("YES")
+            sequence_dates.append(None)
+
+            # try to process SEQUENCE_REASON 'SEQUENCE_REASON' variable of raw_inbound_submission
+            try:
+                # if SEQUENCE_REASON is missing and the SUBMITTING_LAB is 'CDC'; default value to 'SENTINEL SURVEILLANCE'
+                if pd.isnull(raw_inbound_submission['SEQUENCE_REASON']) == True and raw_inbound_submission['SUBMITTING_LAB'] == 'CDC':
+                    sequence_reason = "SENTINEL SURVEILLANCE"
+                # if SEQUENCE_REASON is missing and the SUBMITTING_LAB is 'GRUBAUGH', 'KP WA RESEARCH INST' or 'LAURING LAB'; default value to 'OTHER'
+                elif pd.isnull(raw_inbound_submission['SEQUENCE_REASON']) == True and raw_inbound_submission['SUBMITTING_LAB'] in ['Grubaugh', 'KP WA Research Inst', 'Lauring Lab']:
+                    sequence_reason = "OTHER"
+                # if SEQUENCE_REASON is missing and the SUBMITTING_LAB is not 'CDC', 'GRUBAUGH', 'KP WA RESEARCH INST' or 'LAURING LAB'; default value to 'UNKNOWN'
+                elif pd.isnull(raw_inbound_submission['SEQUENCE_REASON']) == True and raw_inbound_submission['SUBMITTING_LAB'] not in ['CDC', 'Grubaugh', 'KP WA Research Inst', 'Lauring Lab']:
+                    sequence_reason = "UNKNOWN"
+                # if SEQUENCE_REASON (cleaned) is 'CLINICAL' and SUBMITTING_LAB is 'UW_Virology'; fill with cleaned value
+                elif raw_inbound_submission['SEQUENCE_REASON'].strip().upper() == 'CLINICAL' and raw_inbound_submission['SUBMITTING_LAB'] == 'UW_Virology':
+                    sequence_reason = raw_inbound_submission['SEQUENCE_REASON'].strip().upper()
+                # if SEQUENCE_REASON (cleaned) is 'SENTINEL SURVEILLANCE', 'SUSPECTED REINFECTION', 'SUSPECTED VACCINE BREAKTHROUGH', 'OUTBREAK' or 'OTHER'; fill with cleaned value
+                elif raw_inbound_submission['SEQUENCE_REASON'].strip().upper() in ['SENTINEL SURVEILLANCE', 'SUSPECTED REINFECTION', 'SUSPECTED VACCINE BREAKTHROUGH', 'OUTBREAK', 'OTHER']:
+                    sequence_reason = raw_inbound_submission['SEQUENCE_REASON'].strip().upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_reason = 'UNDEFINED'
+                # append value to sequence_reason
+                sequence_reasons.append(sequence_reason)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_reasons.append('UNDEFINED')
+
+            try:
+                submitting_lab = raw_inbound_submission['SUBMITTING_LAB'].strip()
+                submitting_labs.append(submitting_lab)
+                sequence_labs.append(submitting_lab)
+            except:
+                submitting_labs.append('UNDEFINED')
+                sequence_labs.append('UNDEFINED')
+
+            # try to process sequence_status from 'SEQUENCE_STATUS' variable of raw_inbound_submission
+            try:
+                # if SEQUENCE_STATUS is missing; default value to None
+                if pd.isnull(raw_inbound_submission['SEQUENCE_STATUS']) == True:
+                    sequence_status = None
+                # if SEQUENCE_STATUS (cleaned) is 'FAILED' and PANGO_LINEAGE (cleaned) is 'UNASSIGNED'; default value to 'COMPLETE'
+                elif (raw_inbound_submission['SEQUENCE_STATUS'].strip().upper() == 'FAILED') and (pd.isnull(raw_inbound_submission['PANGO_LINEAGE']) == False) and (raw_inbound_submission['PANGO_LINEAGE'].strip().upper() == 'UNASSIGNED'):
+                    sequence_status = 'COMPLETE'
+                # if Sequencing Result (cleaned) is 'COMPLETE' or 'FAILED'; fill with cleaned value
+                elif raw_inbound_submission['SEQUENCE_STATUS'].strip().upper() in ['COMPLETE', 'FAILED', 'LOW QUALITY']:
+                    sequence_status = raw_inbound_submission['SEQUENCE_STATUS'].strip().upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_status = 'UNDEFINED'
+                # append value to sequence_status
+                sequence_statuses.append(sequence_status)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_statuses.append('UNDEFINED')
+
+            sequence_repositorys.append("GISAID")
+
+            # try process gisaid virus name aka sequence accession; if not available except error append NA to list
+            try:
+                seq_acc = raw_inbound_submission['GISAID_ID'].strip()
+
+                if submitter.upper() == 'UW_VIROLOGY':
+                    seq_acc = seq_acc.replace('hCoV-19/', '')
+
+                sequence_accessions.append(seq_acc)
+            except:
+                sequence_accessions.append(None)
+
+            # epi isl will be joined later append NA
+            sequence_epi_isls.append(None)
+
+            # try to process sequence_variant_open_text from 'PANGO_LINEAGE' variable of raw_inbound_submission
+            try:
+                # if PANGO_LINEAGE is missing; default value to None
+                if pd.isnull(raw_inbound_submission['PANGO_LINEAGE']) == True:
+                    sequence_variant_open_text = None
+                # if PANGO_LINEAGE (cleaned) is 'UNASSIGNED'; default value to 'Unassigned'
+                elif raw_inbound_submission['PANGO_LINEAGE'].strip().upper() == 'UNASSIGNED':
+                    sequence_variant_open_text = 'Unassigned'
+                # if PANGO_LINEAGE (cleaned) is a valid lineage; fill with cleaned value
+                elif raw_inbound_submission['PANGO_LINEAGE'].strip().upper() in lineages:
+                    sequence_variant_open_text = raw_inbound_submission['PANGO_LINEAGE'].strip().upper()
+                # if PANGO_LINEAGE after being split on whitespace and the first return is a valid lineage; fill with cleaned value
+                elif raw_inbound_submission['PANGO_LINEAGE'].split(' ')[0].upper() in lineages:
+                    sequence_variant_open_text = raw_inbound_submission['PANGO_LINEAGE'].split(' ')[0].upper()
+                # else default value to 'UNDEFINED'
+                else:
+                    sequence_variant_open_text = "UNDEFINED"
+                # append value to sequence_variant_open_texts
+                sequence_variant_open_texts.append(sequence_variant_open_text)
+            # when error append 'UNDEFINED'
+            except:
+                sequence_variant_open_texts.append('UNDEFINED')
+
+
+
+            sequence_clinical_accessions.append(lab_accession_id)
+
+            sequence_roster_prepare_dates.append(today.strftime('%m/%d/%Y'))
+
+            if sequence_variant_open_text == 'Unassigned' or sequence_variant_open_text is None:
+                sequence_note = None
+            else:
+                sequence_note = f'Lineage identified as {sequence_variant_open_text} on {today}. Lineage assignments may change over time.'
+
+            sequence_notes.append(sequence_note)
+
+            sequence_reviewed.append(None)
+            case_notes.append('External data question package updated by COVID19 Sequencing Roster.')
+
+            i += 1
+
+    ### BLOCK FOR AEGIS, HELIX, LABCORP, University of Washington ELR ###
+    elif submitter.upper() in ['AEGIS SCIENCES CORPORATION', 'HELIX', 'LABORATORY CORPORATION OF AMERICA (LABCORP)', 'QUEST', 'QUEST SAN JUAN CAPISTRANO LABORATORY', 'UNIVERSITY OF WASHINGTON MEDICAL CENTER LABORATORY']:
+
+        numb_sub(submitter)
+
+        df = df_to_process[df_to_process['submitter'] == submitter]
+        df = df.reset_index()
+
+        i = 0
+
+        while i < len(df['submission_number']):
+
+            submission_number = df['submission_number'][i]
+            submission_numbers.append(submission_number)
+
+            raw_inbound_submission = json.loads(df['raw_inbound_submission'][i])
+
+            try:
+                case_id = raw_inbound_submission['CASE_ID']
+                case_ids.append(case_id)
+            except:
+                case_ids.append("")
+
+            sequence_sgtfs.append(None)
+            sequence_specimens.append("YES")
+            sequence_dates.append(None)
+
+            if submitter.upper() in ['AEGIS SCIENCES CORPORATION', 'HELIX', 'LABORATORY CORPORATION OF AMERICA (LABCORP)', 'QUEST', 'QUEST SAN JUAN CAPISTRANO LABORATORY']:
+                sequence_reasons.append("SENTINEL SURVEILLANCE")
+            elif submitter.upper() == 'UNIVERSITY OF WASHINGTON MEDICAL CENTER LABORATORY':
+                note_str = raw_inbound_submission['PATIENT__CENTRIC__OBSERVATION__NOTE'] # this may change to TEST__REQUEST__NOTE
+                split_note = note_str.split('**SEQREA**')
+                seq_reason = split_note[1]
+                sequence_reasons.append(seq_reason.strip().upper())
+
+            submitting_labs.append(submitter)
+            sequence_labs.append(submitter)
+
+            # sequence variant
+            try:
+                sequence_variant_open_text = elr_lineage_extract(raw_inbound_submission['TEST__RESULT'], raw_inbound_submission['TEST__RESULT__NOTE'])
+            except:
+                sequence_variant = 'UNDEFINED'
+
+            sequence_variant_open_texts.append(sequence_variant_open_text)
+
+            try:
+                if pd.isnull(sequence_variant_open_text) == True:
+                    sequence_status = 'FAILED'
+                else:
+                    sequence_status = 'COMPLETE'
+            except:
+                sequence_status = 'UNDEFINED'
+
+            sequence_statuses.append(sequence_status)
+
+            sequence_repositorys.append("GISAID")
+
+            # extract sequence accession number from specific elr column by submitter, formulate value into expected format
+            if submitter.upper() == 'AEGIS SCIENCES CORPORATION':
+                pre_seq_acc = raw_inbound_submission['FILLER__ORDER__NUM']
+                spec_coll_year = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).year
+                try:
+                    seq_acc = 'USA/WA-ASC' + pre_seq_acc + '/' + str(spec_coll_year)
+                except TypeError:
+                    seq_acc = 'UNDEFINED'
+
+                sequence_accessions.append(seq_acc)
+
+            elif submitter.upper() == 'HELIX':
+                pre_seq_acc = raw_inbound_submission['PATIENT__CENTRIC__OBSERVATION__VALUE']
+                spec_coll_year = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).year
+                try:
+                    seq_acc = 'USA/WA-CDC-STM-' + pre_seq_acc + '/' + str(spec_coll_year)
+                except TypeError:
+                    seq_acc = 'UNDEFINED'
+
+                sequence_accessions.append(seq_acc)
+
+            elif submitter.upper() == 'LABORATORY CORPORATION OF AMERICA (LABCORP)':
+                pre_seq_acc = raw_inbound_submission['PATIENT__CENTRIC__OBSERVATION__VALUE']
+
+                spec_coll_dttm = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3)
+                spec_coll_dttm = (spec_coll_dttm.strftime('%m%d%Y'))
+
+                spec_coll_year = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).year
+
+                if pre_seq_acc == None:
+                    try:
+                        seq_acc = 'USA/WA-CDC-' + str(raw_inbound_submission['FILLER__ORDER__NUM']) + str(spec_coll_dttm) + '-DIQA/' + str(spec_coll_year)
+                    except TypeError:
+                        seq_acc = 'UNDEFINED'
+                else:
+                    try:
+                        seq_acc = 'USA/WA-CDC-' + str(pre_seq_acc) + '/' + str(spec_coll_year)
+                    except TypeError:
+                        seq_acc = 'UNDEFINED'
+
+                sequence_accessions.append(seq_acc)
+
+            elif submitter.upper() in ['QUEST', 'QUEST SAN JUAN CAPISTRANO LABORATORY']:
+                pre_seq_acc = raw_inbound_submission['FILLER__ORDER__NUM']
+                spec_coll_year = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).year
+                try:
+                    seq_acc = 'USA/WA-CDC-QDX' + pre_seq_acc + '/' + str(spec_coll_year)
+                except TypeError:
+                    seq_acc = 'UNDEFINED'
+
+                sequence_accessions.append(seq_acc)
+
+            elif submitter.upper() == 'UNIVERSITY OF WASHINGTON MEDICAL CENTER LABORATORY':
+                pre_seq_acc = raw_inbound_submission['PATIENT__CENTRIC__OBSERVATION__VALUE']
+                pre_seq_acc = pre_seq_acc.replace('hCoV-19/', '')
+                spec_coll_year = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).year
+
+                try:
+                    seq_acc = pre_seq_acc + '/' + str(spec_coll_year)
+                except TypeError:
+                    seq_acc = 'UNDEFINED'
+
+                sequence_accessions.append(seq_acc)
+
+            else:
+                sequence_accessions.append(None)
+
+            # epi isl will be joined later append NA
+            sequence_epi_isls.append(None)
+
+            # Assign 'FILLER__ORDER__NUM' to sequence_clinical_accessions
+            try:
+                sequence_clinical_accessions.append(raw_inbound_submission['FILLER__ORDER__NUM'])
+            except:
+                sequence_clinical_accessions.append('UNDEFINED')
+
+            # pull sequence specimen collection date
+            try:
+                specimen_collection_date = datetime.fromtimestamp(raw_inbound_submission['SPECIMEN__COLLECTION__DTTM'] / 1e3).strftime('%m/%d/%Y')
+                sequence_specimen_collection_dates.append(specimen_collection_date)
+            except:
+                sequence_specimen_collection_dates.append(None)
+
+            sequence_roster_prepare_dates.append(today.strftime('%m/%d/%Y'))
+
+            if sequence_variant_open_text == "Unassigned" or sequence_variant_open_text is None:
+                sequence_note = None
+            else:
+                sequence_note = f'Lineage identified as {sequence_variant_open_text} on {today}. Lineage assignments may change over time.'
+            sequence_notes.append(sequence_note)
+
+            sequence_reviewed.append(None)
+            case_notes.append('External data question package updated by COVID19 Sequencing Roster.')
+
+            i += 1
+
+    else:
+        print(f'{submitter} is not a recognized submitter. Please review submissions receieved folder.')
+        print('\n')
+
+pre_roster = pd.DataFrame({
+                        'submission_number': submission_numbers,
+                        'CASE_ID': case_ids,
+                        'SEQUENCE_SGTF': sequence_sgtfs,
+                        'SEQUENCE_SPECIMEN': sequence_specimens,
+                        'SEQUENCE_DATE': sequence_dates,
+                        'SEQUENCE_REASON': sequence_reasons,
+                        'SUBMITTING_LAB': submitting_labs,
+                        'SEQUENCE_LAB': sequence_labs,
+                        'SEQUENCE_STATUS': sequence_statuses,
+                        'SEQUENCE_REPOSITORY': sequence_repositorys,
+                        'SEQUENCE_ACCESSION': sequence_accessions,
+                        'SEQUENCE_EPI_ISL': sequence_epi_isls, # to be joined from gisaid data
+                        'SEQUENCE_VARIANT_OPEN_TEXT': sequence_variant_open_texts,
+                        'SEQUENCE_CLINICAL_ACCESSION': sequence_clinical_accessions,
+                        'SEQUENCE_SPECIMEN_COLLECTION_DATE': sequence_specimen_collection_dates,
+                        'SEQUENCE_ROSTER_PREPARE_DATE': sequence_roster_prepare_dates,
+                        'SEQUENCE_NOTES': sequence_notes,
+                        'SEQUENCE_REVIEWED': sequence_reviewed,
+                        'Case.Note': case_notes
+                     })
+
+pre_roster = pre_roster.drop_duplicates(subset=['SEQUENCE_ACCESSION'], keep='first') # drop duplicate SA from today's roster
+
+pre_roster['SEQUENCE_ACCESSION'] = [x.replace('hCoV-19/', '') for x in pre_roster['SEQUENCE_ACCESSION']]
+
+seq_table_sa = seq_df['SEQUENCE_ACCESSION_NUMBER'] # take all existing SA from WDRS sequencing table
+pre_roster_sa = pre_roster['SEQUENCE_ACCESSION'] # take all SA from today's submissions
+
+sa_diff = set(pre_roster_sa).difference(seq_table_sa) # get difference between two SA lists
+where_diff = pre_roster_sa.isin(sa_diff)
+
+pre_roster = pre_roster[where_diff] # filter pre roster dataframe to remove existing SA values
+pre_roster = pre_roster.reset_index(drop=True)
+
+# join the 'Virus name' and 'Accession ID' column from wa_gisaid and fill SEQUENCE_EPI_ISL from 'Accession ID'
+pre_roster['Virus name'] = pre_roster['SEQUENCE_ACCESSION']
+pre_roster.loc[~pre_roster['Virus name'].str.contains('hCoV-19/'), 'Virus name'] = 'hCoV-19/'+pre_roster['Virus name']
+pre_roster=pd.merge(pre_roster, wa_gisaid[['Virus name', 'Accession ID']], on='Virus name', how='left')
+pre_roster['SEQUENCE_EPI_ISL'] = pre_roster['Accession ID']
+pre_roster=pre_roster.drop(['Virus name', 'Accession ID'], axis=1)
+
+pre_roster_copy = pre_roster.copy()
+
+### END BLOCK 2 ###
+
+### START BLOCK 3 ###
+### QA Checks ###
+
+seq_reason_template = [
+ 'SENTINEL SURVEILLANCE',
+ 'SUSPECTED REINFECTION',
+ 'SUSPECTED VACCINE BREAKTHROUGH',
+ 'OUTBREAK',
+ 'S-DROPOUT',
+ 'OTHER',
+ 'CLINICAL'
+]
+
+seq_reason_phl = [
+ 'SENTINEL SURVEILLANCE',
+ 'SUSPECTED REINFECTION',
+ 'SUSPECTED VACCINE BREAKTHROUGH',
+ 'TRAVEL ASSOCIATED',
+ 'OUTBREAK',
+ 'S-DROPOUT',
+ 'OTHER',
+]
+
+seq_labs_template = [
+ 'Aegis', 'Aegis Sciences Corporation',
+ 'Altius',
+ 'ASU',
+ 'Atlas Genomics',
+ 'Boise VA',
+ 'CDC',
+ 'Central Washington Hospital',
+ 'Curative Labs',
+ 'Fulgent Genetics',
+ 'Gravity Diagnostics',
+ 'Helix',
+ 'Infinity', 'Infinity Biologix',
+ 'KP WA Research Inst',
+ 'Labcorp',
+ 'Lauring Lab',
+ 'Northwest Laboratory',
+ 'NW Genomics',
+ 'OSPHL',
+ 'Quest',
+ 'St Michael Medical Center',
+ 'USAFSAM',
+ 'UW Virology', 'UW Virology Lab']
+
+seq_labs_elr = [
+ 'Aegis Sciences Corporation',
+ 'Helix Diagnositics',
+ 'Laboratory Corporation Of America (LabCorp)',
+ 'Quest San Juan Capistrano Laboratory'
+]
+
+seq_labs_cdc = [
+ 'Quest',
+ 'Labcorp',
+ 'Fulgent Genetics',
+ 'Infinity',
+ 'Helix',
+ 'Aegis']
+
+seq_status = [
+ 'COMPLETE',
+ 'LOW QUALITY',
+ 'FAILED']
+
+# No validation for SEQUENCE_CLINICAL_ACCESSION for all submitters. Varying formats
+# Any SEQUENCE_CLINICAL_ACCESSION that does not match will be routed to no_match_df
+# Validate SEQUENCE_REASON for PHL
+# Validate against seq_reason_phl and replace any invalid values in SEQUENCE_REASON with 'UNDEFINED'
+pre_roster.loc[(pre_roster['SEQUENCE_LAB'] == 'PHL') & (~pre_roster['SEQUENCE_REASON'].isin(seq_reason_phl)), 'SEQUENCE_REASON'] = 'UNDEFINED'
+
+# Validate SEQUENCE_SGTF for all submitters
+# Replace any invalid (non-'') values in SEQUENCE_SGTF with 'UNDEFINED'
+pre_roster.loc[pd.isnull(pre_roster['SEQUENCE_SGTF']) == False, 'SEQUENCE_SGTF'] = 'UNDEFINED'
+
+# Validate SEQUENCE_SPECIMEN for all submitters
+# Replace any invalid (non-'YES') values in SEQUENCE_SPECIMEN with 'UNDEFINED'
+pre_roster.loc[pre_roster['SEQUENCE_SPECIMEN'] != 'YES', 'SEQUENCE_SPECIMEN'] = 'UNDEFINED'
+
+# Validate SEQUENCE_DATE for all submitters
+# Replace any invalid (non-'') values in SEQUENCE_DATE with 'UNDEFINED'
+pre_roster.loc[pd.isnull(pre_roster['SEQUENCE_DATE']) == False, 'SEQUENCE_DATE'] = 'UNDEFINED'
+
+# Validate SEQUENCE_REASON for PHL
+# Validate against seq_reason_phl and replace any invalid values in SEQUENCE_REASON with 'UNDEFINED'
+pre_roster.loc[(pre_roster['SEQUENCE_LAB'] == 'PHL') & (~pre_roster['SEQUENCE_REASON'].isin(seq_reason_phl)), 'SEQUENCE_REASON'] = 'UNDEFINED'
+
+# Validate SEQUENCE_REASON for template submitters
+# Validate against seq_lab_template and seq_reason_template and replace any invalid values in SEQUENCE_REASON with 'UNDEFINED'
+pre_roster.loc[(pre_roster['SEQUENCE_LAB'].isin(seq_labs_template)) & (~pre_roster['SEQUENCE_REASON'].isin(seq_reason_template)), 'SEQUENCE_REASON'] = 'UNDEFINED'
+
+# Validate SEQUENCE_LAB for template submitters
+# Validate against seq_lab_template and seq_lab_elr and replace any invalid values in SEQUENCE_LAB with 'UNDEFINED'
+pre_roster.loc[(~pre_roster['SEQUENCE_LAB'].isin((seq_labs_template + seq_labs_elr + ['PHL']))), 'SEQUENCE_LAB'] = 'UNDEFINED'
+
+# Validate SEQUENCE_STATUS for all submitters
+# Validate against seq_lab_template and seq_reason_template and replace any invalid values in SEQUENCE_STATUS with 'UNDEFINED'
+pre_roster.loc[~pre_roster['SEQUENCE_STATUS'].isin(seq_status), 'SEQUENCE_REASON'] = 'UNDEFINED'
+
+# Validate SEQUENCE_REPOSITORY for all submitters
+# Replace any invalid (non-'GISAID') values in SEQUENCE_REPOSITORY with 'UNDEFINED'
+pre_roster.loc[pre_roster['SEQUENCE_REPOSITORY'] != 'GISAID', 'SEQUENCE_REPOSITORY'] = 'UNDEFINED'
+
+# Validate SEQUENCE_ACCESSION for all submitters
+# Validate against 'USA/WA' format 'mm' and 'dd' can be 1 or 2 digits
+pre_roster.loc[pre_roster['SEQUENCE_ACCESSION'].str.match(r'^USA/WA-.*/\d{4}$') == False, 'SEQUENCE_ACCESSION'] = 'UNDEFINED'
+
+# Validate SEQUENCE_EPI_ISL for all submitters
+# Validate against regex ('EPI_ISL_{any amount of digits}') and is not null value. Replace any invalid values in SEQUENCE_EPI_ISL with 'UNDEFINED'
+pre_roster.loc[(pre_roster['SEQUENCE_EPI_ISL'].str.match(r'^EPI_ISL_\d*$') == False) & (pd.isnull(pre_roster['SEQUENCE_EPI_ISL']) == False), 'SEQUENCE_EPI_ISL'] = 'UNDEFINED'
+
+# Validate SEQUENCE_VARIANT_OPEN_TEXT for all submitters
+# Validate against lineages and replace any invalid values in SEQUENCE_VARIANT_OPEN_TEXT with 'UNDEFINED'
+pre_roster.loc[(~pre_roster['SEQUENCE_VARIANT_OPEN_TEXT'].isin(lineages) & (pd.isnull(pre_roster['SEQUENCE_VARIANT_OPEN_TEXT'])) == False) | pre_roster['SEQUENCE_VARIANT_OPEN_TEXT'] == 'Unassigned', 'SEQUENCE_VARIANT_OPEN_TEXT'] = 'UNDEFINED'
+
+# Validate SEQUENCE_SPECIMEN_COLLECTION_DATE for all submitters
+# Validate against 'mm/dd/yyyy/' format; 'mm' and 'dd' can be 1 or 2 digits
+pre_roster.loc[pre_roster['SEQUENCE_SPECIMEN_COLLECTION_DATE'].str.match(r'^\d{1,2}/\d{1,2}/\d{4}$') == False, 'SEQUENCE_SPECIMEN_COLLECTION_DATE'] = 'UNDEFINED'
+
+# No validation for SEQUENCE_CLINICAL_ACCESSION for all submitters. Varying formats
+# Any SEQUENCE_CLINICAL_ACCESSION that does not match will be routed to no_match_df
+
+# Validate SEQUENCE_ROSTER_PREPARE_DATE for all submitters
+# Validate against 'mm/dd/yyyy/' format; 'mm' and 'dd' can be 1 or 2 digits
+pre_roster.loc[pre_roster['SEQUENCE_ROSTER_PREPARE_DATE'].str.match(r'^\d{1,2}/\d{1,2}/\d{4}$') == False, 'SEQUENCE_ROSTER_PREPARE_DATE'] = 'UNDEFINED'
+
+# Validate SEQUENCE_NOTES for all submitters
+# Validate against regex ('EPI_ISL_{any amount of digits}') and is not null value. Replace any invalid values in SEQUENCE_EPI_ISL with 'UNDEFINED'
+pre_roster.loc[(pre_roster['SEQUENCE_NOTES'].str.match(fr'^Lineage identified as \S{{1,2}}(\.\d*)*? on {today}. Lineage assignments may change over time.$') == False) & (pd.isnull(pre_roster['SEQUENCE_NOTES']) == False), 'SEQUENCE_NOTES'] = 'UNDEFINED'
+
+# Validate SEQUENCE_REVIEWED for all submitters
+# Replace any invalid (non-'') values in SEQUENCE_DATE with 'UNDEFINED'
+pre_roster.loc[pd.isnull(pre_roster['SEQUENCE_REVIEWED']) == False, 'SEQUENCE_REVIEWED'] = 'UNDEFINED'
+
+# Validate Case.Note for all submitters
+# Validate against the following string; 'External data question package updated by COVID19 Sequencing Roster.'
+pre_roster.loc[pre_roster['Case.Note'].str.match(r'^External data question package updated by COVID19 Sequencing Roster\.$') == False, 'Case.Note'] = 'UNDEFINED'
+
+### END BLOCK 3 ###
+
+### START BLOCK 4 ###
+### FUZZY MATCHING ###
+
+no_match_df = pre_roster[pre_roster['CASE_ID'] == '']
+no_match_df = no_match_df.reset_index(drop=True)
+
+list_to_fuzzy = no_match_df['submission_number']
+print(f'There are {len(list_to_fuzzy)} submissions being sent to fuzzy matching')
+print('\n')
+
+submissions_to_fuzzy = df_to_process[df_to_process['submission_number'].isin(list_to_fuzzy)]
+
+def average(lst):
+    return sum(lst) / len(lst)
+
+def name_fuzz(raw_inbound_submission):
+    
+    try:
+    
+        first_name = raw_inbound_submission['FIRST_NAME']
+        last_name = raw_inbound_submission['LAST_NAME']
+    
+        full_name = first_name.upper() + last_name.upper()
+        reversed_name = full_name[::-1]
+    
+        specimen_collection_date = raw_inbound_submission['SPECIMEN_COLLECTION_DATE']
+
+        try:
+            submitted_dob = datetime.strptime(raw_inbound_submission['DOB'],'%m/%d/%Y').strftime('%Y-%m-%d')
+        except KeyError:
+            submitted_dob = datetime.strptime(raw_inbound_submission['DATE_OF_BIRTH'],'%m/%d/%Y').strftime('%Y-%m-%d')
+    
+        cases_df = positive_tests_df[positive_tests_df['SPECIMEN__COLLECTION__DTTM'] == specimen_collection_date]
+        cases_df = cases_df[cases_df['PATIENT_DOB'] == submitted_dob]
+    
+        for index, row in cases_df.iterrows():
+            ratios = []
+    
+            ratio = fuzz.ratio(row['fullnames'], full_name)
+            reverse_ratio = fuzz.ratio(row['fullnames'], reversed_name)
+            ratio_partial = fuzz.partial_ratio(row['fullnames'], full_name)
+            reversed_partial = fuzz.partial_ratio(row['fullnames'], reversed_name)
+    
+            ratios.append(ratio)
+            ratios.append(reverse_ratio)
+            ratios.append(ratio_partial)
+            ratios.append(reversed_partial)
+    
+            ratio_average = average(ratios)
+    
+            if ratio_average >= 70:
+                fuzzy_submissions.append(submission_number)
+                fuzzy_case_ids.append(row['CASE_ID'])
+                fuzzy_ratios.append(ratio_average)
+                print(f'{submission_number} yielded good fuzzy match')
+
+            elif ratio_average > 50:
+                weak_submissions.append(submission_number)
+                weak_case_ids.append(row['CASE_ID'])
+                weak_ratios.append(ratio_average)
+                print(f'{submission_number} yielded week fuzzy match')
+                
+            else:
+                poor_submissions.append(submission_number)
+                poor_case_ids.append(row['CASE_ID'])
+                poor_ratios.append(ratio_average)
+                print(f'{submission_number} yielded poor fuzzy match')
+
+    except ValueError as ve:
+        print(f'{submission_number} experienced error {ve}')
+        no_demographics.append(submission_number)
+
+    except:
+        print(f'Demographics not found for submission number {submission_number}')
+        no_demographics.append(submission_number)
+
+fuzzy_submissions = []
+fuzzy_case_ids  = []
+fuzzy_ratios = []
+no_demographics = []
+weak_submissions = []
+weak_case_ids = []
+weak_ratios = []
+poor_submissions = []
+poor_case_ids = []
+poor_ratios = []
+
+for index, row in submissions_to_fuzzy.iterrows():
+    
+    submission_number = row['submission_number']
+    
+    raw_inbound_submission = json.loads(row['raw_inbound_submission'])
+    
+    name_fuzz(raw_inbound_submission)
+
+fuzzy_complete_df = pd.DataFrame({'submission_number': fuzzy_submissions, 
+                                     'CASE_ID': fuzzy_case_ids,
+                                     'fuzzy_ratios': fuzzy_ratios})
+
+fuzzy_complete_df = fuzzy_complete_df.drop_duplicates(subset=['CASE_ID'], keep='first') # drop duplicate case ids that were matched by name
+
+fuzzy_weak_df = pd.DataFrame({'submission_number': weak_submissions, 
+                                     'CASE_ID': weak_case_ids,
+                                     'fuzzy_ratios': weak_ratios})
+
+fuzzy_poor_df = pd.DataFrame({'submission_number': poor_submissions, 
+                                     'CASE_ID': poor_case_ids,
+                                     'fuzzy_ratios': poor_ratios})
+
+unmatched_roster = no_match_df.drop(columns=['CASE_ID'])
+fuzzy_complete = fuzzy_complete_df.drop(columns=['fuzzy_ratios'])
+
+fuzzy_final_df = pd.merge(fuzzy_complete, unmatched_roster, on='submission_number', how='left')
+
+match_df = pre_roster[pre_roster['CASE_ID'] != '']
+match_df = pd.concat([match_df, fuzzy_final_df])
+match_df = match_df.reset_index(drop=True)
+match_df.to_csv(output_path + f'/final_roster/{today}_sequencing_roster.csv', index=False)
+
+unmatched_df = pre_roster[pre_roster['CASE_ID'] == '']
+unmatched_df = unmatched_df.reset_index(drop=True)
+unmatched_df.to_csv(output_path + f'/unmatched_rosters/{today}_no_match.csv', index=False)
+
+# summary markdown report
+print('\n')
+print('---------------------------')
+print('Please generate summary markdown')
+
+print('\n')
+
+time_end = datetime.now()
+time_delta = time_end - time_start
+print(f'Total processing time was: {time_delta}')
+print('\n')
+
+## for production ## (once 2.0 is in production implement this block)
+
+# for f in range(0, len(processed_file_paths)):
+#     try:
+#         shutil.move(submissions_path + processed_file_paths[f], completed_submissions_path + processed_file_paths[f])
+#     except:
+#         print(f'Could not move the following submission {processed_file_paths[f]}')
+#
+# # completed submissions folder, archive processed ELR submissions
+# elr_submissions_df.to_csv(f'{completed_submissions_path}ELR/{today}_received_submissions')
+```
